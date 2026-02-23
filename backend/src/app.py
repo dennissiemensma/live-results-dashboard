@@ -27,6 +27,7 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
+        logger.info(f"Client connected. Active connections: {len(self.active_connections)}")
 
         # Send status immediately
         await websocket.send_json(
@@ -42,7 +43,10 @@ class ConnectionManager:
         # Send current cached data if available
         current_data = await cache.get("latest_data")
         if current_data:
+            logger.info("Sending cached data to new client")
             await websocket.send_json({"type": "data", "data": current_data})
+        else:
+            logger.info("No cached data available for new client")
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:

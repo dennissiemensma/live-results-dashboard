@@ -33,13 +33,14 @@ Specs:
 - Run on development server on port `4200`
 - Also run on production server on port `8888` outside the container (mapped to `80` in the container)
 - Uses websocket to receive data from backend, connection on backend port `5000`
-- Do not alter or remove `mockserver/mappings/example.json`
 - Relocate nginx config into separate folder
 
 Specs:
-- Connect to backend socket on startup and display `status` type data received.
-
+- Connect to websocket when interface is ready, not on page load
+- Display `status` type data received from backend in a status section of the dashboard
+- Display top-level `name` field of data instead of loader
 
 ## Mockserver
 - For development without real data URL
+- Do not alter or remove `example.json`
 - Wiremock

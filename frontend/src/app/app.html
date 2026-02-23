@@ -11,28 +11,43 @@
                 <span
                   [ngClass]="{
                     'text-success': backendStatus === 'Connected',
-                    'text-danger': backendStatus !== 'Connected'
+                    'text-danger': backendStatus !== 'Connected' && backendStatus !== 'Connecting...',
+                    'text-warning': backendStatus === 'Connecting...'
                   }"
                   ><strong>{{ backendStatus }}</strong></span
                 >
               </p>
+
+              <div class="mb-4">
+                  <button *ngIf="backendStatus === 'Disconnected'" (click)="connect()" class="btn btn-primary">Connect to Live Results</button>
+                  <button *ngIf="backendStatus === 'Connected' || backendStatus === 'Connecting...'" (click)="disconnect()" class="btn btn-secondary">Disconnect</button>
+              </div>
+
               <div *ngIf="backendStatus === 'Connected'">
                 <p><strong>Source URL:</strong> {{ dataSourceUrl }}</p>
                 <p><strong>Refresh Interval:</strong> {{ dataSourceInterval }}s</p>
               </div>
 
-              <div *ngIf="data; else loading" class="mt-4">
-                <h5>Latest Data:</h5>
-                <pre class="bg-dark text-white p-3"><code>{{ data | json }}</code></pre>
-              </div>
-              <ng-template #loading>
-                <div class="mt-4 text-center">
-                  <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
+              <div *ngIf="backendStatus === 'Connected' || backendStatus === 'Connecting...'">
+                  <div *ngIf="data; else loading" class="mt-4">
+                    <div class="card bg-primary text-white">
+                      <div class="card-body text-center">
+                        <h2 class="display-4">{{ data.name }}</h2>
+                        <p class="lead">Live Event Data</p>
+                      </div>
+                    </div>
+                    <!-- Debug view of full data (optional, can be removed if strictly following spec to only show name) -->
+                    <!-- <pre class="bg-dark text-white p-3 mt-3"><code>{{ data | json }}</code></pre> -->
                   </div>
-                  <p>Waiting for live data...</p>
-                </div>
-              </ng-template>
+                  <ng-template #loading>
+                    <div class="mt-4 text-center">
+                      <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                      </div>
+                      <p>Waiting for live data...</p>
+                    </div>
+                  </ng-template>
+              </div>
             </div>
           </div>
         </div>
