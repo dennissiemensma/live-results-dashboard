@@ -1,0 +1,58 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Containerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/src:/app
+    command: uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+    environment:
+      - DATA_SOURCE_URL=http://mockserver:8080/api/data
+      - DATA_SOURCE_INTERVAL=2
+    networks:
+      - dashboard-net
+
+  # http://localhost:4200 - development build of the frontend with hot reloading
+  frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Containerfile
+      target: build
+    command: npm start -- --host 0.0.0.0 --poll 2000
+    ports:
+      - "4200:4200"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - dashboard-net
+
+  # http://localhost:8888 - production build of the frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Containerfile
+    ports:
+      - "8888:80"
+    depends_on:
+      - backend
+    networks:
+      - dashboard-net
+
+  mockserver:
+    build:
+      context: ./mockserver
+      dockerfile: Containerfile
+    command: --root-dir /home/wiremock --verbose
+    volumes:
+      - ./mockserver:/home/wiremock
+    networks:
+      - dashboard-net
+
+networks:
+  dashboard-net:
+    driver: bridge
