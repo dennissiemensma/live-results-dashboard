@@ -78,30 +78,39 @@ Specs:
           - [x] place the head of the race group to the right and each following group left of it.
           - [x] limit the amount of groups to render depending on the viewport media size
           - [x] group competitors by laps count, then by total time if they are within 2 seconds of each other
-          - Render each group in a card, with the laps count time difference between them
-            - [x] Top group should be tagged as "Head of race" in a green badge
+          - Render each group in a card with the following:
+            - [x] Title should be "group X" where X is the group number starting from 1 for the head of the race
+            - [x] Top group should be tagged as "Head of the race" in a green badge as well
             - [x] Within each group
               - sort by total time ascending
               - show the total time for the first competitor in the group
               - then show the time difference for each subsequent competitor in the group, compared to each one above another
-          - Between each group, show the time difference between the last competitor of the previous group and the first competitor of the next group
-            - [x] Show this in an orange badge between the groups.
+            - [x] Between each group, show the time difference between the first competitor of the group behind and the last competitor of the next group ahead. Show this in an orange badge after the group name.
           - [x] Apply updates that are animated in the left column similarly in the right column, so that it's clear which competitor got updated in both columns
             - [x] Animate position changes too, so that it's clear when a competitor moves up or down in the ranking
-
-        - New row: 
+              
+        - New row:
+          - [x] Containing all competitors
           - [x] When it is **not** a mass start: 
             - Group by `heat` in cards, then sort by `heat` ascending, then by total time in `time` ascending
           - [x] When it is a mass start: 
             - Do not group by `heat`, just show all in order (see sort below), do not use `heat` colors (use black everywhere)
-          - [x] use stored race data above
-          - [x] show each item in `races`
-          - [x] show `competitor` object `startNumber` in badge format (use the `lane` color in badge) and  `name`
-          - [x] sort by count of `laps` descending, secondary sort by `time` ascending
-          - [x] Show the `laps` count per race too in badge
-          - [x] Show the time along it, make decimals gray and small, also make sure to remove any leading zeroes and drop (do not round) any precision over 3 decimals (e.g. `00:01:23.4560000` should be shown as `1:23.456`)
-          - [x] On any update of a race item (use `time` value to determine if it is an update), animate the background color of the item to light green for a few seconds to indicate an update. Resort races if needed.
-          - [x] Animate position changes too, so that it's clear when a competitor moves up or down in the ranking - use a verbose animation swapping rows
+            - [x] use stored race data above
+            - [x] show each item in `races`
+            - [x] show `competitor` object `startNumber` in badge format (use the `lane` color in badge) and  `name`
+            - [x] sort by count of `laps` descending, secondary sort by `time` ascending
+            - [x] Add a badge after the name with "Final lap" if they have one remaining
+            - [x] Show the `laps` count and remaining in badge, e.g. "Laps: 3/10", rendering the total laps in small gray text
+            - [x] Show the time along it, make decimals gray and small, also make sure to remove any leading zeroes and drop (do not round) any precision over 3 decimals (e.g. `00:01:23.4560000` should be shown as `1:23.456`)
+            - [x] On any update of a race item (use `time` value to determine if it is an update), animate the background color of the item to light green for a few seconds to indicate an update. Resort races if needed.
+            - [x] Animate position changes too, so that it's clear when a competitor moves up or down in the ranking - use a verbose animation swapping rows
+            - [x] Keep track of the finishing line and render it below the last competitor that completed a lap in each data update.
+            - [x] Render a small gap between the groups of competitors
+            - Selection:
+              - [x] Clicking a competitor row selects them — highlighted with a distinct border/background
+              - [x] The selection is reflected in both the strip and the standings list simultaneously
+              - [x] Clicking again or clicking elsewhere deselects
+              - [x] Only one competitor can be selected at a time
 
 ## Mockserver
 - [x] For development without real data URL

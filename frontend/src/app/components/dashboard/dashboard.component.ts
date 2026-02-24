@@ -63,6 +63,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   initialLiveId: string | null = null;
   pulseActive = false;
+  selectedRaceId: string | null = null;
+
+  selectRace(id: string): void {
+    this.selectedRaceId = this.selectedRaceId === id ? null : id;
+  }
 
   private pulseTimeout: ReturnType<typeof setTimeout> | null = null;
   private dataSub: Subscription | null = null;
@@ -112,7 +117,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   isRecentUpdate(timestamp: number | undefined): boolean {
     if (!timestamp) return false;
-    return Date.now() - timestamp < 3000;
+    return Date.now() - timestamp < 8000;
   }
 
   padStartNumber(n: string): string {
@@ -134,6 +139,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   /** Stable animation state key — changes whenever the sort order of the list changes. */
   raceListKey(races: { id: string }[]): string {
     return races.map(r => r.id).join(',');
+  }
+
+  /**
+   * Returns true when the race at raceIdx is the first competitor of a new
+   * standings group (different lapsCount from the previous race), so we can
+   * render a small visual gap between groups.
+   */
+  isFirstInNewGroup(distance: import('../../models/data.models').ProcessedDistance, raceIdx: number): boolean {
+    const races = distance.processedRaces;
+    if (!races || raceIdx <= 0 || raceIdx >= races.length) return false;
+    return races[raceIdx].lapsCount !== races[raceIdx - 1].lapsCount;
   }
 
   /**

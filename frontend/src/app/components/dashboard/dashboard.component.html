@@ -62,10 +62,13 @@
                     <div class="group-strip-card flex-shrink-0 {{ groupCardClass($index) }}">
                       <c-card class="h-100">
                         <c-card-header class="py-1 px-2 d-flex justify-content-between align-items-center gap-2">
-                          <div class="d-flex align-items-center gap-1">
-                            <small class="fw-bold text-nowrap">{{ group.laps }} lap{{ group.laps !== 1 ? 's' : '' }}</small>
+                          <div class="d-flex align-items-center gap-1 flex-wrap">
+                            <small class="fw-bold text-nowrap">Group {{ group.groupNumber }}</small>
                             @if (firstGroup) {
                               <c-badge color="success" class="text-nowrap" style="font-size:0.65em">Head of race</c-badge>
+                            }
+                            @if (!firstGroup && group.gapToGroupAhead) {
+                              <c-badge color="warning" class="text-dark text-nowrap" style="font-size:0.65em">{{ group.gapToGroupAhead }}</c-badge>
                             }
                           </div>
                           @if (group.leaderTime) {
@@ -85,6 +88,8 @@
                                 [class.flash-update]="isRecentUpdate(race.lastUpdated)"
                                 [class.pos-up]="race.positionChange === 'up'"
                                 [class.pos-down]="race.positionChange === 'down'"
+                                [class.race-selected]="selectedRaceId === race.id"
+                                (click)="selectRace(race.id)"
                               >
                                 <div class="d-flex align-items-center gap-1">
                                   <c-badge class="start-num-badge badge-black" style="font-size:0.75em">{{ padStartNumber(race.startNumber) }}</c-badge>
@@ -121,6 +126,8 @@
                                 [class.flash-update]="isRecentUpdate(race.lastUpdated)"
                                 [class.pos-up]="race.positionChange === 'up'"
                                 [class.pos-down]="race.positionChange === 'down'"
+                                [class.race-selected]="selectedRaceId === race.id"
+                                (click)="selectRace(race.id)"
                               >
                                 <div class="d-flex align-items-center gap-2">
                                   <c-badge
@@ -150,19 +157,32 @@
                 @if (distance.isMassStart) {
                   <c-col [xs]="12">
                     <div [@raceList]="raceListKey(distance.processedRaces)">
-                      @for (race of distance.processedRaces; track race.id) {
+                      @for (race of distance.processedRaces; track race.id; let raceIdx = $index) {
+                        <!-- Group gap separator between standings groups -->
+                        @if (raceIdx > 0 && isFirstInNewGroup(distance, raceIdx)) {
+                          <div class="standings-group-gap"></div>
+                        }
                         <div
                           class="race-item d-flex justify-content-between align-items-center p-2 mb-1 rounded"
                           [class.flash-update]="isRecentUpdate(race.lastUpdated)"
                           [class.pos-up]="race.positionChange === 'up'"
                           [class.pos-down]="race.positionChange === 'down'"
+                          [class.race-selected]="selectedRaceId === race.id"
+                          (click)="selectRace(race.id)"
                         >
                           <div class="d-flex align-items-center gap-2">
                             <c-badge class="start-num-badge badge-black">{{ padStartNumber(race.startNumber) }}</c-badge>
                             <span>{{ race.competitorName }}</span>
+                            @if (race.isFinalLap) {
+                              <c-badge color="danger" style="font-size:0.7em">Final lap</c-badge>
+                            }
                           </div>
                           <div class="d-flex align-items-center gap-2">
-                            <c-badge color="secondary">{{ race.lapsCount }} lap{{ race.lapsCount !== 1 ? 's' : '' }}</c-badge>
+                            @if (distance.totalLaps) {
+                              <c-badge color="secondary" class="laps-badge">{{ race.lapsCount }}<small class="laps-total">/{{ distance.totalLaps }}</small></c-badge>
+                            } @else {
+                              <c-badge color="secondary">{{ race.lapsCount }} lap{{ race.lapsCount !== 1 ? 's' : '' }}</c-badge>
+                            }
                             @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
                               <span class="race-time">{{ splitFormattedTime(race.formattedTotalTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formattedTotalTime)[1] }}</small></span>
                             } @else {
@@ -170,6 +190,14 @@
                             }
                           </div>
                         </div>
+                        <!-- Finishing line: rendered below the last competitor updated this tick -->
+                        @if (distance.finishingLineAfter && race.id === distance.finishingLineAfter) {
+                          <div class="finishing-line d-flex align-items-center gap-2 my-1">
+                            <div class="finishing-line-bar flex-grow-1"></div>
+                            <span class="finishing-line-label">Lap completed</span>
+                            <div class="finishing-line-bar flex-grow-1"></div>
+                          </div>
+                        }
                       }
                     </div>
                   </c-col>

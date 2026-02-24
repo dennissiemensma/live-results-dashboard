@@ -233,11 +233,28 @@ export class DataService {
           return { heat, races };
         });
       } else {
+        // ── assign lapsRemaining / isFinalLap ──────────────────────────────
+        if (totalLaps) {
+          for (const race of processedRaces) {
+            race.lapsRemaining = Math.max(0, totalLaps - race.lapsCount);
+            race.isFinalLap = race.lapsRemaining === 1;
+          }
+        }
+
+        // ── find finishing line: last race that received a lap this update ──
+        // (the last race in sorted order whose lastUpdated === Date.now() tick)
+        const recentTs = Math.max(...processedRaces.map(r => r.lastUpdated || 0));
+        const updatedThisTick = processedRaces.filter(r => r.lastUpdated === recentTs && recentTs > 0);
+        const finishingLineAfter = updatedThisTick.length > 0
+          ? updatedThisTick[updatedThisTick.length - 1].id
+          : null;
+
+        // ── build standings groups ─────────────────────────────────────────
         const groups: StandingsGroup[] = [];
         let currentGroup: StandingsGroup | null = null;
         for (const race of processedRaces) {
           if (!currentGroup) {
-            currentGroup = { laps: race.lapsCount, races: [race] };
+            currentGroup = { laps: race.lapsCount, races: [race], groupNumber: 1 };
             groups.push(currentGroup);
           } else if (race.lapsCount === currentGroup.laps) {
             const lastRace = currentGroup.races[currentGroup.races.length - 1];
@@ -245,11 +262,11 @@ export class DataService {
             if (diff <= 2.0) {
               currentGroup.races.push(race);
             } else {
-              currentGroup = { laps: race.lapsCount, races: [race] };
+              currentGroup = { laps: race.lapsCount, races: [race], groupNumber: groups.length + 1 };
               groups.push(currentGroup);
             }
           } else {
-            currentGroup = { laps: race.lapsCount, races: [race] };
+            currentGroup = { laps: race.lapsCount, races: [race], groupNumber: groups.length + 1 };
             groups.push(currentGroup);
           }
         }
@@ -268,25 +285,32 @@ export class DataService {
 
         for (let gi = 0; gi < groups.length; gi++) {
           const group = groups[gi];
+
           if (group.races.length > 0 && group.races[0].totalTime) {
             group.leaderTime = group.races[0].formattedTotalTime;
           }
+
+          // intra-group gaps
           for (let ri = 1; ri < group.races.length; ri++) {
             const prev = group.races[ri - 1];
             const curr = group.races[ri];
             if (prev.totalTime && curr.totalTime) {
               const diff = this.getTimeDifferenceInSeconds(prev.totalTime, curr.totalTime);
-              curr.gapToAbove = `+${diff.toFixed(3)}`;
+              curr.gapToAbove = `+${diff.toFixed(3)}s`;
             }
           }
+
           if (gi > 0) {
+            // gapToGroupAhead: first of this group vs last of group directly ahead
             const prevGroup = groups[gi - 1];
             const lastOfPrev = prevGroup.races[prevGroup.races.length - 1];
             const firstOfCurr = group.races[0];
             if (lastOfPrev.totalTime && firstOfCurr.totalTime) {
               const diff = this.getTimeDifferenceInSeconds(lastOfPrev.totalTime, firstOfCurr.totalTime);
-              group.gapToPreviousGroup = `+${diff.toFixed(3)}`;
+              group.gapToGroupAhead = `+${diff.toFixed(3)}s`;
             }
+
+            // timeBehindLeader: first of this group vs overall leader
             if (overallLeaderTime && firstOfCurr.totalTime) {
               const behind = this.getTimeDifferenceInSeconds(overallLeaderTime, firstOfCurr.totalTime);
               group.timeBehindLeader = `+${behind.toFixed(3)}s`;
@@ -294,6 +318,9 @@ export class DataService {
           }
         }
         standingsGroups = groups;
+
+        // Store finishingLineAfter on the distance for template use
+        (distance as any)._finishingLineAfter = finishingLineAfter;
       }
 
       return {
@@ -303,7 +330,8 @@ export class DataService {
         totalLaps,
         processedRaces,
         heatGroups,
-        standingsGroups
+        standingsGroups,
+        finishingLineAfter: (distance as any)._finishingLineAfter ?? null,
       } as ProcessedDistance;
     });
 

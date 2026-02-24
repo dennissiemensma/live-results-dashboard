@@ -46,6 +46,10 @@ export interface ProcessedRace {
   gapToAbove?: string;
   /** Position change vs previous update: 'up' | 'down' | null */
   positionChange?: 'up' | 'down' | null;
+  /** Laps remaining until totalLaps, if known */
+  lapsRemaining?: number;
+  /** True when exactly 1 lap remains */
+  isFinalLap?: boolean;
 }
 
 export interface HeatGroup {
@@ -56,23 +60,23 @@ export interface HeatGroup {
 export interface ProcessedDistance extends Distance {
   isMassStart: boolean;
   processedRaces: ProcessedRace[];
-  /** Extracted meters from distance title (non-mass-start) */
   distanceMeters?: number;
-  /** Extracted total laps from distance title (mass-start) */
   totalLaps?: number;
-  /** Heat-grouped races for non-mass-start left column */
   heatGroups?: HeatGroup[];
-  /** Laps/time groups for mass-start right column */
   standingsGroups?: StandingsGroup[];
+  /** Race id after which to render the finishing line (last updated race this tick) */
+  finishingLineAfter?: string | null;
 }
 
 export interface StandingsGroup {
   laps: number;
   races: ProcessedRace[];
+  /** 1-based group number; 1 = head of race */
+  groupNumber: number;
   /** Formatted time of the first competitor (leader of this group) */
   leaderTime?: string;
-  /** Gap from last of previous group to first of this group, e.g. "+0.456" */
-  gapToPreviousGroup?: string;
+  /** Gap from first of this group to last of the group directly ahead, e.g. "+5.234s" */
+  gapToGroupAhead?: string;
   /** Total time behind the overall race leader (first of first group), e.g. "+12.345s" */
   timeBehindLeader?: string;
 }

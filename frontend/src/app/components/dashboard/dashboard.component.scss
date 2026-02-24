@@ -6,30 +6,32 @@
 // ===== ANIMATIONS =====
 @keyframes flashGreen {
   0%   { background-color: #c3e6cb; }
-  60%  { background-color: #c3e6cb; }
+  85%  { background-color: #c3e6cb; }
   100% { background-color: transparent; }
 }
 .flash-update {
-  animation: flashGreen 3s ease-out forwards;
+  animation: flashGreen 8s ease-in-out forwards;
 }
 // Verbose position-change animations: physically slide the row in from above/below
 @keyframes slideInFromAbove {
   0%   { transform: translateY(-100%); background-color: #cce5ff; z-index: 10; }
-  50%  { transform: translateY(0);     background-color: #cce5ff; }
+  20%  { transform: translateY(0);     background-color: #cce5ff; }
+  88%  { transform: translateY(0);     background-color: #cce5ff; }
   100% { transform: translateY(0);     background-color: transparent; }
 }
 @keyframes slideInFromBelow {
   0%   { transform: translateY(100%);  background-color: #fff3cd; z-index: 10; }
-  50%  { transform: translateY(0);     background-color: #fff3cd; }
+  20%  { transform: translateY(0);     background-color: #fff3cd; }
+  88%  { transform: translateY(0);     background-color: #fff3cd; }
   100% { transform: translateY(0);     background-color: transparent; }
 }
 .pos-up {
   position: relative;
-  animation: slideInFromAbove 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: slideInFromAbove 3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 .pos-down {
   position: relative;
-  animation: slideInFromBelow 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: slideInFromBelow 3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 @keyframes glowRed {
   0%   { box-shadow: 0 0 0 0   rgba(220,53,69,0.7); }
@@ -70,11 +72,31 @@
   color: #fff !important;
 }
 // ===== RACE ITEMS =====
+.race-item,
+.race-item-group {
+  cursor: pointer;
+  transition: outline 0.1s;
+}
 .race-item {
   border: 1px solid rgba(0,0,0,0.05);
 }
 .race-item-group {
   border: 1px solid transparent;
+}
+// Selected state — distinct border + tinted background
+.race-selected {
+  outline: 2px solid #0d6efd !important;
+  outline-offset: -2px;
+  background-color: rgba(13, 110, 253, 0.07) !important;
+}
+// ===== LAPS BADGE =====
+.laps-badge {
+  font-variant-numeric: tabular-nums;
+}
+.laps-total {
+  font-size: 0.78em;
+  opacity: 0.6;
+  margin-left: 0.1em;
 }
 // ===== TIME STYLING =====
 .race-time {
@@ -87,6 +109,33 @@
 }
 // ===== GROUP GAP =====
 .group-gap-separator { text-align: center; margin: 0.5rem 0; }
+
+// Small gap between standings groups in the main list
+.standings-group-gap {
+  height: 0.6rem;
+}
+
+// ===== FINISHING LINE =====
+.finishing-line {
+  margin: 0.25rem 0;
+  color: #6c757d;
+}
+.finishing-line-bar {
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    #000 0px, #000 8px,
+    #fff 8px, #fff 14px
+  );
+  border: 1px solid #dee2e6;
+}
+.finishing-line-label {
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  color: #6c757d;
+}
 
 // ===== HORIZONTAL GROUPS STRIP =====
 .groups-strip {
