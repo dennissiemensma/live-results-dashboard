@@ -55,7 +55,7 @@ Each component:
 - [x] Mass start: top row of group cards (see below); non-mass-start: group by `heat` in cards sorted by `heat` then `time`
 - [x] Groups: sorted by lap count then total time (within 2s threshold)
 - [x] Group cards: title "Group X" (X=1 for head); show total time for first, time delta for each subsequent
-- [ ] Head group tagged "Head of the race" (green badge); remove badge after first finish
+- [x] Head group tagged "Head of the race" (green badge); remove badge after first finish
 - [x] Between groups: orange badge with time gap between last of leading group and first of trailing group
 - [x] Remove finished competitors from groups
 - [x] Sync highlight/animate updates between strip and standings list
@@ -68,10 +68,11 @@ Each component:
 - [x] Rank prefix: "1ˢᵗ" style with raised superscript, light gray
 - [x] Laps badge: "Laps: 3/10" with total in small gray
 - [x] Time: drop leading zeros, truncate (not round) to 3 decimals, decimals in small gray
-- [x] Animate row background to light yellow on update; re-sort after update
+- [x] Animate row background to light yellow on update for 3s; re-sort after update
 - [x] Animate position changes with row-swap animation (no color for position changes)
 - [x] Finishing line: rendered below last lap-completed competitor per update; animate to new position
 - [x] Group separator lines with group name
+- [x] Duplicate the finishing line above the first competitor of each group to indicate the group and its name (only at the top of each group)
 - [x] Click to select competitor (highlight border/bg); reflected in both strip and standings; click again/elsewhere to deselect; one selection at a time
 
 ## Mockserver
@@ -80,10 +81,10 @@ Each component:
 - [x] Simulate mass start live distance from `example.json`
 - [x] Each competitor has a stable personal pace with per-lap noise
 - [x] Competitors complete laps independently based on pace
-- [x] Lap duration 10–30s ± 5s noise
+- [x] Lap duration 10–30s ± 5s noise; main pack within 10s window; last competitor has its own slow steady pace
 - [x] Faster competitors can lap slower ones (differing lap counts)
 - [x] Stop updating finishers (reached `MAX_LAPS`); keep in standings
-- [x] When all finish: set `isLive: false`, pause, restart after 1 minute
+- [x] When all finish: set `isLive: false`, stay idle until manual reset
 - [x] `POST /api/reset` to restart immediately
 - [x] Log mocked changes
 - [x] Use `faker` for competitor names

@@ -68,6 +68,8 @@ export interface ProcessedDistance extends Distance {
   standingsGroups?: StandingsGroup[];
   /** Race id after which to render the finishing line (last updated race this tick) */
   finishingLineAfter?: string | null;
+  /** True once at least one competitor has finished (lapsRemaining === 0) */
+  anyFinished?: boolean;
 }
 
 export interface StandingsGroup {
@@ -81,4 +83,6 @@ export interface StandingsGroup {
   gapToGroupAhead?: string;
   /** Total time behind the overall race leader (first of first group), e.g. "+12.345s" */
   timeBehindLeader?: string;
+  /** True for the tail group (highest groupNumber) — merges into the group ahead */
+  isLastGroup?: boolean;
 }

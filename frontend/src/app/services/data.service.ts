@@ -261,20 +261,20 @@ export class DataService {
         let currentGroup: StandingsGroup | null = null;
         for (const race of racesForGroups) {
           if (!currentGroup) {
-            currentGroup = { laps: race.lapsCount, races: [race], groupNumber: 1 };
-            groups.push(currentGroup);
+            currentGroup = { laps: race.lapsCount, races: [race], groupNumber: 1, isLastGroup: false };
+            groups.push(currentGroup!);
           } else if (race.lapsCount === currentGroup.laps) {
             const lastRace = currentGroup.races[currentGroup.races.length - 1];
             const diff = this.getTimeDifferenceInSeconds(lastRace.totalTime, race.totalTime);
             if (diff <= 2.0) {
               currentGroup.races.push(race);
             } else {
-              currentGroup = { laps: race.lapsCount, races: [race], groupNumber: groups.length + 1 };
-              groups.push(currentGroup);
+              currentGroup = { laps: race.lapsCount, races: [race], groupNumber: groups.length + 1, isLastGroup: false };
+              groups.push(currentGroup!);
             }
           } else {
-            currentGroup = { laps: race.lapsCount, races: [race], groupNumber: groups.length + 1 };
-            groups.push(currentGroup);
+            currentGroup = { laps: race.lapsCount, races: [race], groupNumber: groups.length + 1, isLastGroup: false };
+            groups.push(currentGroup!);
           }
         }
 
@@ -325,9 +325,14 @@ export class DataService {
           }
         }
         standingsGroups = groups;
+        // Mark tail group so the template can apply the correct leave animation
+        if (groups.length > 0) {
+          groups[groups.length - 1].isLastGroup = true;
+        }
 
         // Store finishingLineAfter on the distance for template use
         (distance as any)._finishingLineAfter = finishingLineAfter;
+        (distance as any)._anyFinished = processedRaces.some(r => r.finishedRank != null);
       }
 
       return {
@@ -339,6 +344,7 @@ export class DataService {
         heatGroups,
         standingsGroups,
         finishingLineAfter: (distance as any)._finishingLineAfter ?? null,
+        anyFinished: (distance as any)._anyFinished ?? false,
       } as ProcessedDistance;
     });
 

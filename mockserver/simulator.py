@@ -5,18 +5,19 @@ mutated in real-time to simulate a realistic inline-skating mass-start race.
 
 Simulation model
 ────────────────
-• Each competitor is assigned a stable personal pace (seconds/lap) once at
-  race start, drawn uniformly from [LAP_MIN, LAP_MAX] (10–30 s).
-• A per-lap noise of ±LAP_NOISE (5 s) is applied each lap, clamped to
-  [LAP_MIN - LAP_NOISE, LAP_MAX + LAP_NOISE].
+• Competitors are split into two tiers at race start:
+  - Main pack (all but last): paces drawn within a 10 s window so they
+    stay on the same lap and produce realistic group / position-change dynamics.
+  - Loner (last competitor): a distinctly slower fixed pace, always a lap
+    or more behind the pack.
+• A per-lap noise of ±LAP_NOISE (5 s) is applied to pack competitors each lap,
+  clamped to [LAP_MIN - LAP_NOISE, LAP_MAX + LAP_NOISE].  The loner gets no
+  noise — it moves at a steady, predictable rate.
 • Competitors are ticked independently: a competitor completes their next lap
   once wall-clock time ≥ their scheduled next-lap timestamp.
-• Faster skaters naturally accumulate more laps than slower ones, producing
-  realistic lap-count differences and position swaps.
 • Once every competitor has completed MAX_LAPS the distance is marked
   isLive=False. Competitors that finished are kept in the standings but receive
-  no further laps. After RESTART_DELAY seconds (one minute) the simulation
-  resets and a new race begins (isLive flips back to True).
+  no further laps. The simulation stays idle until POST /api/reset is called.
 
 Does NOT modify example.json on disk.
 """
@@ -47,7 +48,6 @@ LAP_MIN = 10.0          # minimum lap time (seconds)
 LAP_MAX = 30.0          # maximum lap time (seconds)
 LAP_NOISE = 5.0         # ± per-lap random noise on top of personal pace
 MAX_LAPS = 20           # total race laps (excl. warmup lap)
-RESTART_DELAY = 60      # seconds to wait after race ends before restarting (one minute)
 
 # ── load base data ────────────────────────────────────────────────────────────
 _base_path = Path(__file__).parent / "data" / "example.json"
@@ -102,7 +102,6 @@ class CompetitorSim:
 _sims: dict[str, CompetitorSim] = {}   # race_id → CompetitorSim
 _state: dict = {}
 _race_finished = False
-_race_end_time: float = 0.0
 
 
 def _assign_fake_names(state: dict) -> None:
@@ -120,13 +119,12 @@ def _assign_fake_names(state: dict) -> None:
 
 def _init_simulation() -> None:
     """Build fresh _state and _sims from the base data."""
-    global _state, _sims, _race_finished, _race_end_time
+    global _state, _sims, _race_finished
 
     _state = copy.deepcopy(_base_data)
     _assign_fake_names(_state)
     _sims = {}
     _race_finished = False
-    _race_end_time = 0.0
 
     dist = _find_live_mass_start(_state)
     if not dist:
@@ -137,33 +135,52 @@ def _init_simulation() -> None:
     dist["isLive"] = True
 
     now = time.monotonic()
-    for race in dist["races"]:
-        rid = race["id"]
-        # Warm up lap is already in laps[0]; seed elapsed from its time
-        warmup_time = _parse_time(race["laps"][0]["time"]) if race["laps"] else 0.0
+    races = dist["races"]
 
-        pace = random.uniform(LAP_MIN, LAP_MAX)
-        # Stagger first lap completion slightly so they don't all fire at once
+    # Two-tier pacing:
+    #   Main pack (all but last): paces within a 10s window so they stay
+    #   on the same lap and produce interesting group dynamics.
+    #   Last competitor: a distinctly slower steady pace on its own.
+    PACK_WINDOW = 10.0          # max spread within the main pack (seconds/lap)
+    LONER_GAP   = 15.0          # how much slower the loner is vs the slowest pack member
+
+    pack_base = random.uniform(LAP_MIN, LAP_MAX - PACK_WINDOW)
+    pack_races = races[:-1]
+    loner_race  = races[-1]
+
+    for race in pack_races:
+        rid = race["id"]
+        warmup_time = _parse_time(race["laps"][0]["time"]) if race["laps"] else 0.0
+        pace = pack_base + random.uniform(0.0, PACK_WINDOW)
         jitter = random.uniform(0.0, pace * 0.25)
         _sims[rid] = CompetitorSim(
             race_id=rid,
             personal_pace=pace,
             next_lap_at=now + warmup_time + pace + jitter,
             elapsed_race_time=warmup_time,
-            laps_done=len(race["laps"]) - 1,  # exclude warmup
+            laps_done=len(race["laps"]) - 1,
         )
 
+    # Loner: fixed slow pace, no jitter so it moves at a steady predictable rate
+    loner_pace = pack_base + PACK_WINDOW + LONER_GAP
+    loner_warmup = _parse_time(loner_race["laps"][0]["time"]) if loner_race["laps"] else 0.0
+    _sims[loner_race["id"]] = CompetitorSim(
+        race_id=loner_race["id"],
+        personal_pace=loner_pace,
+        next_lap_at=now + loner_warmup + loner_pace,
+        elapsed_race_time=loner_warmup,
+        laps_done=len(loner_race["laps"]) - 1,
+    )
+
     log.info(
-        "Simulation initialised: %d competitors, pace range %.1f–%.1f s/lap",
-        len(_sims),
-        min(s.personal_pace for s in _sims.values()),
-        max(s.personal_pace for s in _sims.values()),
+        "Simulation initialised: %d competitors — pack base=%.1fs window=%.1fs, loner=%.1fs/lap",
+        len(_sims), pack_base, PACK_WINDOW, loner_pace,
     )
 
 
 def _tick() -> None:
     """Advance the simulation by one tick — complete any due laps."""
-    global _race_finished, _race_end_time
+    global _race_finished
 
     if _race_finished:
         return
@@ -183,9 +200,15 @@ def _tick() -> None:
         if now < sim.next_lap_at:
             continue
 
-        # Competitor completes a lap — pace ± noise, clamped to valid range
-        noise = random.uniform(-LAP_NOISE, LAP_NOISE)
-        lap_secs = max(LAP_MIN - LAP_NOISE, min(LAP_MAX + LAP_NOISE, sim.personal_pace + noise))
+        # Competitor completes a lap.
+        # Loner (last race) runs at fixed pace; pack gets ± noise each lap.
+        dist_races = dist["races"]
+        is_loner = (race is dist_races[-1])
+        if is_loner:
+            lap_secs = sim.personal_pace
+        else:
+            noise = random.uniform(-LAP_NOISE, LAP_NOISE)
+            lap_secs = max(LAP_MIN - LAP_NOISE, min(LAP_MAX + LAP_NOISE, sim.personal_pace + noise))
         sim.elapsed_race_time += lap_secs
         sim.laps_done += 1
 
@@ -201,10 +224,13 @@ def _tick() -> None:
             start_num, name, sim.laps_done, MAX_LAPS, lap_secs, _fmt(sim.elapsed_race_time),
         )
 
-        # Schedule next lap with fresh noise
-        next_noise = random.uniform(-LAP_NOISE, LAP_NOISE)
-        next_lap = max(LAP_MIN - LAP_NOISE, min(LAP_MAX + LAP_NOISE, sim.personal_pace + next_noise))
-        sim.next_lap_at = now + next_lap
+        # Schedule next lap (loner: fixed interval; pack: fresh noise)
+        if is_loner:
+            sim.next_lap_at = now + sim.personal_pace
+        else:
+            next_noise = random.uniform(-LAP_NOISE, LAP_NOISE)
+            next_lap = max(LAP_MIN - LAP_NOISE, min(LAP_MAX + LAP_NOISE, sim.personal_pace + next_noise))
+            sim.next_lap_at = now + next_lap
         any_updated = True
 
     if any_updated:
@@ -218,8 +244,7 @@ def _tick() -> None:
     if all(s.laps_done >= MAX_LAPS for s in _sims.values()):
         dist["isLive"] = False
         _race_finished = True
-        _race_end_time = time.monotonic()
-        log.info("Race finished — restarting in %ds", RESTART_DELAY)
+        log.info("Race finished — use POST /api/reset to restart")
 
 
 # ── background simulation loop ────────────────────────────────────────────────
@@ -228,12 +253,7 @@ async def _simulation_loop() -> None:
     _init_simulation()
     while True:
         await asyncio.sleep(TICK_INTERVAL)
-
-        if _race_finished:
-            if time.monotonic() - _race_end_time >= RESTART_DELAY:
-                log.info("Restarting simulation")
-                _init_simulation()
-        else:
+        if not _race_finished:
             _tick()
 
 

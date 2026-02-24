@@ -10,7 +10,7 @@
   100% { background-color: transparent; }
 }
 .flash-update {
-  animation: flashYellow 8s ease-in-out forwards;
+  animation: flashYellow 3s ease-in-out forwards;
 }
 // Verbose position-change animations: physically slide the row — no color, animation only
 @keyframes slideInFromAbove {
@@ -125,6 +125,27 @@
 // Small gap between standings groups in the main list
 .standings-group-gap {
   height: 0.6rem;
+}
+
+// Group divider line inside the standings list — one per group, above its first member
+.standings-group-divider {
+  margin-bottom: 0.35rem;
+}
+.standings-group-divider-bar {
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    #000 0px, #000 8px,
+    #fff 8px, #fff 14px
+  );
+  border: 1px solid #dee2e6;
+}
+.standings-group-divider-label {
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  color: #6c757d;
 }
 
 // ===== FINISHING LINE =====

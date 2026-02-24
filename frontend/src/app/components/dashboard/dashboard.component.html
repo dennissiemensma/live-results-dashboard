@@ -58,13 +58,14 @@
               <!-- ===== MASS-START TOP STRIP: head of race right, groups left ===== -->
               @if (distance.isMassStart && distance.standingsGroups?.length) {
                 <div class="groups-strip d-flex flex-row-reverse gap-2 mb-3 pb-1">
-                  @for (group of distance.standingsGroups; track $index; let firstGroup = $first) {
-                    <div class="group-strip-card flex-shrink-0 {{ groupCardClass($index) }}">
+                  @for (group of distance.standingsGroups; track group.groupNumber; let firstGroup = $first) {
+                    <div class="group-strip-card flex-shrink-0 {{ groupCardClass($index) }}"
+                         [@groupCard]="group.isLastGroup ? 'last' : 'normal'">
                       <c-card class="h-100">
                         <c-card-header class="py-1 px-2 d-flex justify-content-between align-items-center gap-2">
                           <div class="d-flex align-items-center gap-1 flex-wrap">
                             <small class="fw-bold text-nowrap">Group {{ group.groupNumber }}</small>
-                            @if (firstGroup) {
+                            @if (firstGroup && !distance.anyFinished) {
                               <c-badge color="success" class="text-nowrap" style="font-size:0.65em">Head of race</c-badge>
                             }
                             @if (!firstGroup && group.gapToGroupAhead) {
@@ -154,8 +155,14 @@
                          [attr.data-finishing-container]="distance.id"
                          [@raceList]="raceListKey(distance.processedRaces)">
                       @for (race of distance.processedRaces; track race.id; let raceIdx = $index) {
-                        <!-- Group gap separator between standings groups -->
-                        @if (raceIdx > 0 && isFirstInNewGroup(distance, raceIdx)) {
+                        <!-- Group divider above each group's first member -->
+                        @if (groupForRace(distance, race.id); as grp) {
+                          <div class="standings-group-divider d-flex align-items-center gap-2" [class.mt-2]="raceIdx > 0">
+                            <div class="standings-group-divider-bar flex-grow-1"></div>
+                            <span class="standings-group-divider-label">Group {{ grp.groupNumber }}</span>
+                            <div class="standings-group-divider-bar flex-grow-1"></div>
+                          </div>
+                        } @else if (raceIdx > 0 && isFirstInNewGroup(distance, raceIdx)) {
                           <div class="standings-group-gap"></div>
                         }
                         <div

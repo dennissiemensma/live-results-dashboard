@@ -19,6 +19,7 @@ import {
   animate,
   query,
   stagger,
+  state,
 } from '@angular/animations';
 
 // Verbose row-swap animation:
@@ -37,6 +38,25 @@ export const raceListAnimation = trigger('raceList', [
   ]),
 ]);
 
+/**
+ * Group card leave animations:
+ *  'last'   — the tail group merged into the group ahead: slide right (toward head) + fade
+ *  'normal' — a group was disbanded (members finished): fade out in place
+ */
+export const groupCardAnimation = trigger('groupCard', [
+  state('last',   style({ opacity: 1, transform: 'translateX(0)' })),
+  state('normal', style({ opacity: 1, transform: 'translateX(0)' })),
+  // last group: slide toward head (right in the row-reversed strip) + fade
+  transition('last => void', [
+    animate('420ms cubic-bezier(0.4, 0, 0.2, 1)',
+      style({ opacity: 0, transform: 'translateX(60px)' })),
+  ]),
+  // disbanded group: fade out in place
+  transition('normal => void', [
+    animate('350ms ease-in', style({ opacity: 0 })),
+  ]),
+]);
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -52,7 +72,7 @@ export const raceListAnimation = trigger('raceList', [
   ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
-  animations: [raceListAnimation],
+  animations: [raceListAnimation, groupCardAnimation],
 })
 export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
   sortedDistances$: Observable<ProcessedDistance[]>;
@@ -150,7 +170,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   isRecentUpdate(timestamp: number | undefined): boolean {
     if (!timestamp) return false;
-    return Date.now() - timestamp < 8000;
+    return Date.now() - timestamp < 3000;
   }
 
   padStartNumber(n: string): string {
@@ -190,6 +210,15 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
     const races = distance.processedRaces;
     if (!races || raceIdx <= 0 || raceIdx >= races.length) return false;
     return races[raceIdx].lapsCount !== races[raceIdx - 1].lapsCount;
+  }
+
+  /**
+   * Returns the StandingsGroup that contains the given race id, or null.
+   * Used to render a group divider above the first member of each group.
+   */
+  groupForRace(distance: import('../../models/data.models').ProcessedDistance, raceId: string): import('../../models/data.models').StandingsGroup | null {
+    if (!distance.standingsGroups) return null;
+    return distance.standingsGroups.find(g => g.races[0]?.id === raceId) ?? null;
   }
 
   /**
