@@ -212,6 +212,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return distance.standingsGroups.find(g => g.races[0]?.id === raceId) ?? null;
   }
 
+  /** Returns the display name for a standings group. */
+  groupDisplayName(group: StandingsGroup, isFirst: boolean, anyFinished = false): string {
+    if (group.isOthers) return 'Tail of the race';
+    if (isFirst && !anyFinished) return 'Head of the race';
+    return 'Group ' + group.groupNumber;
+  }
+
   /**
    * Returns d-none classes so card at groupIndex is hidden when viewport is too narrow.
    * xs shows 1, sm shows 2, md shows 3, lg shows 4, xl shows 5+

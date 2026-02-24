@@ -87,17 +87,13 @@
                       <c-card class="h-100">
                         <c-card-header class="py-1 px-2 d-flex justify-content-between align-items-center gap-2">
                           <div class="d-flex align-items-center gap-1 flex-wrap">
-                            <small class="fw-bold text-nowrap">{{ group.isOthers ? 'Others' : 'Group ' + group.groupNumber }}</small>
-                            @if (group.isOthers) {
-                              <c-badge color="danger" class="text-nowrap" style="font-size:0.65em">Tail of race</c-badge>
-                            } @else if (firstGroup && !distance.anyFinished) {
-                              <c-badge color="success" class="text-nowrap" style="font-size:0.65em">Head of race</c-badge>
-                            } @else if (!firstGroup && group.gapToGroupAhead) {
-                              <span class="gap-badge text-nowrap">{{ group.gapToGroupAhead }}</span>
+                            <small class="fw-bold text-nowrap">{{ groupDisplayName(group, firstGroup, distance.anyFinished) }}</small>
+                            @if (firstGroup && !distance.anyFinished) {
+                              <c-badge color="success" class="text-nowrap" style="font-size:0.65em">Leader</c-badge>
                             }
                           </div>
-                          @if (group.leaderTime) {
-                            <span class="group-leader-time">{{ splitFormattedTime(group.leaderTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(group.leaderTime)[1] }}</small></span>
+                          @if (!firstGroup && group.gapToGroupAhead) {
+                            <span class="gap-badge text-nowrap">{{ group.gapToGroupAhead }}</span>
                           }
                         </c-card-header>
                         <c-card-body class="py-1 px-2">
@@ -116,8 +112,8 @@
                                   <span class="small text-truncate strip-name">{{ race.name }}</span>
                                 </div>
                                 @if (firstRace) {
-                                  @if (race.formatted_total_time && race.formatted_total_time !== 'No Time') {
-                                    <span class="race-time ms-1" style="font-size:0.8em;white-space:nowrap">{{ splitFormattedTime(race.formatted_total_time)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formatted_total_time)[1] }}</small></span>
+                                  @if (race.is_final_lap) {
+                                    <span class="group-final-lap-label ms-1">Final lap</span>
                                   }
                                 } @else {
                                   <span class="text-muted fst-italic ms-1" style="font-size:0.75em;white-space:nowrap">{{ race.gap_to_above }}</span>
@@ -183,7 +179,7 @@
                         @if (groupForRace(distance, race.id); as grp) {
                           <div class="group-finishing-line d-flex align-items-center gap-2">
                             <div class="group-line-bar flex-grow-1"></div>
-                            <span class="group-line-label">Group {{ grp.groupNumber }}</span>
+                            <span class="group-line-label">{{ groupDisplayName(grp, grp.groupNumber === 1, distance.anyFinished) }}</span>
                             <div class="group-line-bar flex-grow-1"></div>
                           </div>
                         } @else if (raceIdx > 0 && isFirstInNewGroup(distance, raceIdx)) {

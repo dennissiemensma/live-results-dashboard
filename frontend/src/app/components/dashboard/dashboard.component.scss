@@ -240,13 +240,14 @@
   color: #212529;
   letter-spacing: 0.02em;
 }
-// Group card leader time — distinct slate color
-.group-leader-time {
-  font-size: 0.85em;
+// "Final lap" label inside group card for the group leader
+.group-final-lap-label {
+  font-size: 0.7em;
   font-weight: 600;
-  color: #2c3e50;
+  color: #0d6efd;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 // ===== SKELETON =====
 @keyframes shimmer {

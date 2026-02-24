@@ -72,17 +72,20 @@ Each component:
 
 ##### Inside each accordion
 - [x] Mass start: top row of group cards; non-mass-start: group by heat in cards sorted by heat then time
-- [x] Group cards: title "Group X"; show total time top-right in a distinct color (not muted gray); show time delta for each subsequent competitor
-- [x] Head group tagged "Head of the race" (green badge); remove badge after first finish
-- [x] Between groups: orange badge with time gap
-- [x] Remove finished competitors from groups
+- [x] Group cards: first group titled **"Head of the race"** with a green **"Leader"** badge while no one has finished; once anyone finishes the first group reverts to **"Group 1"** (badge also hidden); overflow/tail group titled **"Tail of the race"** (no extra badge); intermediate groups titled "Group X"; gap badge (`+Xs`) shown top-right in the card header for non-head groups; head group shows no gap; finished competitors are removed from group cards immediately
+- [x] Head group tagged "Head of the race" (title) with green "Leader" badge; both revert to "Group 1" / no badge after first finish
+- [x] Between groups: gap badge shown top-right in the card header; shows `+Xs` time diff when groups share the same lap count, or `+X lap(s)` when the groups are on different laps
+- [x] Group strip shown immediately on initial load (no debounce delay on first render); subsequent updates still debounced by group threshold
 - [x] Sync highlight/animate updates between strip and standings list
 - [x] Animate position changes in both columns
+- [x] Group separator lines in standings list use the same naming: "Head of the race" / "Group X" / "Tail of the race"; first group reverts to "Group 1" once anyone finishes (mirrors card behaviour)
 
 ##### Competitor list row
 - [x] All competitors; mass start: single list (black badges); non-mass start: grouped by heat
+- [x] Group cards: group leader right-side slot shows **"Final lap"** label (blue) when `is_final_lap` is set, nothing otherwise; subsequent competitors show intra-group gap as before
 - [x] Sort: laps descending, then time ascending
 - [x] "Final lap" (blue) / "Finished" (green) badge; finished competitor rows are slightly opaque
+- [x] All competitors show their `formatted_total_time`; no separate diff badge for finishers
 - [x] Rank prefix: "1ˢᵗ" style with raised superscript, light gray
 - [x] Laps badge: "X/total" with total in small gray; rendered after the time field
 - [x] Time: decimals in small gray

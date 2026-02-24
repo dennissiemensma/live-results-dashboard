@@ -149,7 +149,12 @@ export class DataService {
     while (this.queue.length > 0 && Date.now() < deadline) {
       changed = this._applyMessage(this.queue.shift()) || changed;
     }
-    if (changed) this.ngZone.run(() => this._publishState());
+    if (changed) {
+      // Flush groups immediately so the strip renders on initial load
+      // (debounce will still update it again after the threshold delay)
+      this._flushDisplayedGroups();
+      this.ngZone.run(() => this._publishState());
+    }
     if (this.queue.length > 0) this._scheduleNextCycle();
     else this.renderLoopRunning = false;
   }
@@ -279,6 +284,7 @@ export class DataService {
     const unfinished = dist.processedRaces.filter(r => r.finished_rank == null && r.total_time);
     dist.processedRaces.forEach(r => { r.group_number = null; r.gap_to_above = null; });
 
+
     let groups: { laps: number; races: CompetitorUpdate[] }[] = [];
     let cur: { laps: number; races: CompetitorUpdate[] } | null = null;
 
@@ -313,8 +319,13 @@ export class DataService {
       let timeBehindLeader: string | null = null;
 
       if (gi > 0) {
-        const prevLast = groups[gi - 1].races[groups[gi - 1].races.length - 1];
-        if (prevLast.total_time && first.total_time) {
+        const prevGroup = groups[gi - 1];
+        const prevLast = prevGroup.races[prevGroup.races.length - 1];
+        const lapDiff = prevGroup.laps - group.laps;
+        if (lapDiff > 0) {
+          // Different lap count: express gap in laps, not time
+          gapToGroupAhead = `+${lapDiff} lap${lapDiff === 1 ? '' : 's'}`;
+        } else if (prevLast.total_time && first.total_time) {
           gapToGroupAhead = `+${this._timeDiff(prevLast.total_time, first.total_time).toFixed(3)}s`;
         }
         if (leaderTime && first.total_time) {
