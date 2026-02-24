@@ -72,15 +72,28 @@ Specs:
         - [x] Reverse sorting by distance `eventNumber` descending - hide `eventNumber`
         - [x] Mark any `isLive` with an animated badge "Live"
         - [x] By default, expand the one tagged with `isLive` initially (but not after new updates)
+        - [x] Ensure the `startNumbers` have a fixed width for at least 2 digits and centered within the badge
       - Inside each accordion:
         - [x] When a mass start, add a row on top for rendering groups along each other (see further below) 
           - [x] place the head of the race group to the right and each following group left of it.
           - [x] limit the amount of groups to render depending on the viewport media size
-        - [x] Add new row split into two columns left and right:
-        - [x] Ensure the `startNumbers` have a fixed width for at least 2 digits and centered within the badge
-        - Left column: 
-          - [x] When it is **not** a mass start: Use full width and omit right column. Group by `heat` in cards, then sort by `heat` ascending, then by total time in `time` ascending
-          - [x] When it is a mass start: Do not group by `heat`, just show all in order (see sort below), do not use `heat` colors (use black everywhere)
+          - [x] group competitors by laps count, then by total time if they are within 2 seconds of each other
+          - Render each group in a card, with the laps count time difference between them
+            - [x] Top group should be tagged as "Head of race" in a green badge
+            - [x] Within each group
+              - sort by total time ascending
+              - show the total time for the first competitor in the group
+              - then show the time difference for each subsequent competitor in the group, compared to each one above another
+          - Between each group, show the time difference between the last competitor of the previous group and the first competitor of the next group
+            - [x] Show this in an orange badge between the groups.
+          - [x] Apply updates that are animated in the left column similarly in the right column, so that it's clear which competitor got updated in both columns
+            - [x] Animate position changes too, so that it's clear when a competitor moves up or down in the ranking
+
+        - New row: 
+          - [x] When it is **not** a mass start: 
+            - Group by `heat` in cards, then sort by `heat` ascending, then by total time in `time` ascending
+          - [x] When it is a mass start: 
+            - Do not group by `heat`, just show all in order (see sort below), do not use `heat` colors (use black everywhere)
           - [x] use stored race data above
           - [x] show each item in `races`
           - [x] show `competitor` object `startNumber` in badge format (use the `lane` color in badge) and  `name`
@@ -88,18 +101,7 @@ Specs:
           - [x] Show the `laps` count per race too in badge
           - [x] Show the time along it, make decimals gray and small, also make sure to remove any leading zeroes and drop (do not round) any precision over 3 decimals (e.g. `00:01:23.4560000` should be shown as `1:23.456`)
           - [x] On any update of a race item (use `time` value to determine if it is an update), animate the background color of the item to light green for a few seconds to indicate an update. Resort races if needed.
-          - [x] Animate position changes too, so that it's clear when a competitor moves up or down in the ranking
-        - Right column:
-          - [x] Omit when it is **not** a mass start, then just show the left column full width
-          - Similar to left column but now groups competitors
-            - [x] group by laps count, then by total time if they are within 2 seconds of each other
-          - Render each group in a card, with the laps count time difference between them
-            - [x] Top group should be tagged as "Head of race" in a green badge
-            - [x] Within each group, sort by total time ascending, show the total time for the first competitor in the group, and then show the time difference for each subsequent competitor in the group compared to each one above another
-          - Between each group, show the time difference between the last competitor of the previous group and the first competitor of the next group
-            - [x] Show this in an orange badge between the groups.
-          - [x] Apply updates that are animated in the left column similarly in the right column, so that it's clear which competitor got updated in both columns
-            - [x] Animate position changes too, so that it's clear when a competitor moves up or down in the ranking
+          - [x] Animate position changes too, so that it's clear when a competitor moves up or down in the ranking - use a verbose animation swapping rows
 
 ## Mockserver
 - [x] For development without real data URL

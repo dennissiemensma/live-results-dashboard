@@ -12,6 +12,30 @@ import {
   GridModule,
   SharedModule,
 } from '@coreui/angular';
+import {
+  trigger,
+  transition,
+  style,
+  animate,
+  query,
+  stagger,
+} from '@angular/animations';
+
+// Verbose row-swap animation:
+// When the list re-orders, leaving items slide out and entering items slide in.
+export const raceListAnimation = trigger('raceList', [
+  transition('* => *', [
+    query(':leave', [
+      animate('300ms ease-in', style({ opacity: 0, transform: 'translateX(-20px)' })),
+    ], { optional: true }),
+    query(':enter', [
+      style({ opacity: 0, transform: 'translateX(20px)' }),
+      stagger(40, [
+        animate('300ms ease-out', style({ opacity: 1, transform: 'translateX(0)' })),
+      ]),
+    ], { optional: true }),
+  ]),
+]);
 
 @Component({
   selector: 'app-dashboard',
@@ -28,6 +52,7 @@ import {
   ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
+  animations: [raceListAnimation],
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   sortedDistances$: Observable<ProcessedDistance[]>;
@@ -106,28 +131,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return [t.substring(0, dot), '.' + t.substring(dot + 1)];
   }
 
-  /**
-   * Returns a Bootstrap display class to hide a group card in the top strip
-   * when it exceeds the visible count for the current breakpoint.
-   * Groups are rendered right-to-left (index 0 = head of race = rightmost).
-   * We show: xs:1, sm:2, md:3, lg:4, xl:5
-   */
-  groupStripVisibility(groupIndex: number): string {
-    // Build a class string that hides this card at breakpoints where it would overflow.
-    // groupIndex 0 is always visible. groupIndex N is hidden below the breakpoint that fits N+1 cards.
-    const breakpoints = [
-      { minCards: 2, hideBelow: 'sm' },
-      { minCards: 3, hideBelow: 'md' },
-      { minCards: 4, hideBelow: 'lg' },
-      { minCards: 5, hideBelow: 'xl' },
-    ];
-    for (const bp of breakpoints) {
-      if (groupIndex >= bp.minCards) {
-        // This card is beyond what fits at this breakpoint and below
-        return `d-none d-${bp.hideBelow}-flex`;
-      }
-    }
-    return 'd-flex'; // always visible (index 0–1 at xs+, 0–2 at sm+, etc. — handled cumulatively below)
+  /** Stable animation state key — changes whenever the sort order of the list changes. */
+  raceListKey(races: { id: string }[]): string {
+    return races.map(r => r.id).join(',');
   }
 
   /**
@@ -135,10 +141,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
    * xs shows 1, sm shows 2, md shows 3, lg shows 4, xl shows 5+
    */
   groupCardClass(groupIndex: number): string {
-    if (groupIndex === 0) return ''; // always visible
+    if (groupIndex === 0) return '';
     if (groupIndex === 1) return 'd-none d-sm-block';
     if (groupIndex === 2) return 'd-none d-md-block';
     if (groupIndex === 3) return 'd-none d-lg-block';
-    return 'd-none d-xl-block'; // groupIndex >= 4
+    return 'd-none d-xl-block';
   }
 }

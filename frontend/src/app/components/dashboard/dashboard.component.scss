@@ -12,18 +12,25 @@
 .flash-update {
   animation: flashGreen 3s ease-out forwards;
 }
+// Verbose position-change animations: physically slide the row in from above/below
 @keyframes slideInFromAbove {
-  0%   { transform: translateY(-6px); background-color: #cce5ff; }
-  40%  { transform: translateY(0);    background-color: #cce5ff; }
-  100% { transform: translateY(0);    background-color: transparent; }
+  0%   { transform: translateY(-100%); background-color: #cce5ff; z-index: 10; }
+  50%  { transform: translateY(0);     background-color: #cce5ff; }
+  100% { transform: translateY(0);     background-color: transparent; }
 }
 @keyframes slideInFromBelow {
-  0%   { transform: translateY(6px);  background-color: #ffe5cc; }
-  40%  { transform: translateY(0);    background-color: #ffe5cc; }
-  100% { transform: translateY(0);    background-color: transparent; }
+  0%   { transform: translateY(100%);  background-color: #fff3cd; z-index: 10; }
+  50%  { transform: translateY(0);     background-color: #fff3cd; }
+  100% { transform: translateY(0);     background-color: transparent; }
 }
-.pos-up   { animation: slideInFromAbove 1.8s ease-out forwards; }
-.pos-down { animation: slideInFromBelow 1.8s ease-out forwards; }
+.pos-up {
+  position: relative;
+  animation: slideInFromAbove 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.pos-down {
+  position: relative;
+  animation: slideInFromBelow 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
 @keyframes glowRed {
   0%   { box-shadow: 0 0 0 0   rgba(220,53,69,0.7); }
   70%  { box-shadow: 0 0 0 6px rgba(220,53,69,0);   }

@@ -35,7 +35,6 @@
   <!-- ===== MAIN CONTENT ===== -->
   <main class="flex-grow-1 px-4 pb-4">
     @if ((sortedDistances$ | async)?.length) {
-      <!-- Data is loaded -->
       <c-accordion [alwaysOpen]="true">
         @for (distance of sortedDistances$ | async; track distance.id) {
           <c-accordion-item [visible]="distance.id === initialLiveId">
@@ -56,8 +55,7 @@
               </div>
             </ng-template>
             <ng-template cTemplateId="accordionBody">
-
-              <!-- ===== MASS-START TOP STRIP ===== -->
+              <!-- ===== MASS-START TOP STRIP: head of race right, groups left ===== -->
               @if (distance.isMassStart && distance.standingsGroups?.length) {
                 <div class="groups-strip d-flex flex-row-reverse gap-2 mb-3 pb-1">
                   @for (group of distance.standingsGroups; track $index; let firstGroup = $first) {
@@ -67,7 +65,7 @@
                           <div class="d-flex align-items-center gap-1">
                             <small class="fw-bold text-nowrap">{{ group.laps }} lap{{ group.laps !== 1 ? 's' : '' }}</small>
                             @if (firstGroup) {
-                              <c-badge color="success" class="text-nowrap" style="font-size:0.65em">Head</c-badge>
+                              <c-badge color="success" class="text-nowrap" style="font-size:0.65em">Head of race</c-badge>
                             }
                           </div>
                           @if (group.leaderTime) {
@@ -80,145 +78,100 @@
                               <c-badge color="warning" class="text-dark" style="font-size:0.7em">{{ group.timeBehindLeader }}</c-badge>
                             </div>
                           }
-                          @for (race of group.races; track race.id; let firstRace = $first) {
-                            <div
-                              class="race-item-group d-flex justify-content-between align-items-center rounded px-1 mb-1"
-                              [class.flash-update]="isRecentUpdate(race.lastUpdated)"
-                              [class.pos-up]="race.positionChange === 'up'"
-                              [class.pos-down]="race.positionChange === 'down'"
-                            >
-                              <div class="d-flex align-items-center gap-1">
-                                <c-badge class="start-num-badge badge-black" style="font-size:0.75em">{{ padStartNumber(race.startNumber) }}</c-badge>
-                                <span class="small text-truncate strip-name">{{ race.competitorName }}</span>
-                              </div>
-                              @if (firstRace) {
-                                @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
-                                  <span class="race-time ms-1" style="font-size:0.8em;white-space:nowrap">{{ splitFormattedTime(race.formattedTotalTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formattedTotalTime)[1] }}</small></span>
+                          <div [@raceList]="raceListKey(group.races)">
+                            @for (race of group.races; track race.id; let firstRace = $first) {
+                              <div
+                                class="race-item-group d-flex justify-content-between align-items-center rounded px-1 mb-1"
+                                [class.flash-update]="isRecentUpdate(race.lastUpdated)"
+                                [class.pos-up]="race.positionChange === 'up'"
+                                [class.pos-down]="race.positionChange === 'down'"
+                              >
+                                <div class="d-flex align-items-center gap-1">
+                                  <c-badge class="start-num-badge badge-black" style="font-size:0.75em">{{ padStartNumber(race.startNumber) }}</c-badge>
+                                  <span class="small text-truncate strip-name">{{ race.competitorName }}</span>
+                                </div>
+                                @if (firstRace) {
+                                  @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
+                                    <span class="race-time ms-1" style="font-size:0.8em;white-space:nowrap">{{ splitFormattedTime(race.formattedTotalTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formattedTotalTime)[1] }}</small></span>
+                                  }
+                                } @else {
+                                  <span class="text-muted fst-italic ms-1" style="font-size:0.75em;white-space:nowrap">{{ race.gapToAbove }}</span>
                                 }
-                              } @else {
-                                <span class="text-muted fst-italic ms-1" style="font-size:0.75em;white-space:nowrap">{{ race.gapToAbove }}</span>
-                              }
-                            </div>
-                          }
+                              </div>
+                            }
+                          </div>
                         </c-card-body>
                       </c-card>
                     </div>
                   }
                 </div>
               }
-
               <c-row>
-                <!-- NON-MASS-START: full width, heat-grouped -->
+                <!-- NON-MASS-START: full width, grouped by heat -->
                 @if (!distance.isMassStart) {
                   <c-col [xs]="12">
                     @for (heatGroup of distance.heatGroups; track heatGroup.heat) {
                       <c-card class="mb-3">
                         <c-card-header class="py-2"><strong>Heat {{ heatGroup.heat }}</strong></c-card-header>
                         <c-card-body class="py-1 px-2">
-                          @for (race of heatGroup.races; track race.id) {
-                            <div
-                              class="race-item d-flex justify-content-between align-items-center p-2 mb-1 rounded"
-                              [class.flash-update]="isRecentUpdate(race.lastUpdated)"
-                              [class.pos-up]="race.positionChange === 'up'"
-                              [class.pos-down]="race.positionChange === 'down'"
-                            >
-                              <div class="d-flex align-items-center gap-2">
-                                <c-badge
-                                  class="start-num-badge"
-                                  [style.background-color]="race.lane"
-                                  [ngClass]="badgeTextClass(race.lane)"
-                                >{{ padStartNumber(race.startNumber) }}</c-badge>
-                                <span>{{ race.competitorName }}</span>
+                          <div [@raceList]="raceListKey(heatGroup.races)">
+                            @for (race of heatGroup.races; track race.id) {
+                              <div
+                                class="race-item d-flex justify-content-between align-items-center p-2 mb-1 rounded"
+                                [class.flash-update]="isRecentUpdate(race.lastUpdated)"
+                                [class.pos-up]="race.positionChange === 'up'"
+                                [class.pos-down]="race.positionChange === 'down'"
+                              >
+                                <div class="d-flex align-items-center gap-2">
+                                  <c-badge
+                                    class="start-num-badge"
+                                    [style.background-color]="race.lane"
+                                    [ngClass]="badgeTextClass(race.lane)"
+                                  >{{ padStartNumber(race.startNumber) }}</c-badge>
+                                  <span>{{ race.competitorName }}</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                  <c-badge color="secondary">{{ race.lapsCount }} lap{{ race.lapsCount !== 1 ? 's' : '' }}</c-badge>
+                                  @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
+                                    <span class="race-time">{{ splitFormattedTime(race.formattedTotalTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formattedTotalTime)[1] }}</small></span>
+                                  } @else {
+                                    <span class="text-muted small">No Time</span>
+                                  }
+                                </div>
                               </div>
-                              <div class="d-flex align-items-center gap-2">
-                                <c-badge color="secondary">{{ race.lapsCount }} lap{{ race.lapsCount !== 1 ? 's' : '' }}</c-badge>
-                                @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
-                                  <span class="race-time">{{ splitFormattedTime(race.formattedTotalTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formattedTotalTime)[1] }}</small></span>
-                                } @else {
-                                  <span class="text-muted small">No Time</span>
-                                }
-                              </div>
-                            </div>
-                          }
+                            }
+                          </div>
                         </c-card-body>
                       </c-card>
                     }
                   </c-col>
                 }
-                <!-- MASS-START: left standings + right groups -->
+                <!-- MASS-START: full-width standings, no right column -->
                 @if (distance.isMassStart) {
-                  <!-- Left: all races, black badges -->
-                  <c-col [md]="6" class="border-end">
-                    <h6 class="mb-2 fw-bold">Standings</h6>
-                    @for (race of distance.processedRaces; track race.id) {
-                      <div
-                        class="race-item d-flex justify-content-between align-items-center p-2 mb-1 rounded"
-                        [class.flash-update]="isRecentUpdate(race.lastUpdated)"
-                        [class.pos-up]="race.positionChange === 'up'"
-                        [class.pos-down]="race.positionChange === 'down'"
-                      >
-                        <div class="d-flex align-items-center gap-2">
-                          <c-badge class="start-num-badge badge-black">{{ padStartNumber(race.startNumber) }}</c-badge>
-                          <span>{{ race.competitorName }}</span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                          <c-badge color="secondary">{{ race.lapsCount }} lap{{ race.lapsCount !== 1 ? 's' : '' }}</c-badge>
-                          @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
-                            <span class="race-time">{{ splitFormattedTime(race.formattedTotalTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formattedTotalTime)[1] }}</small></span>
-                          } @else {
-                            <span class="text-muted small">No Time</span>
-                          }
-                        </div>
-                      </div>
-                    }
-                  </c-col>
-                  <!-- Right: groups -->
-                  <c-col [md]="6">
-                    <h6 class="mb-2 fw-bold">Groups</h6>
-                    @for (group of distance.standingsGroups; track $index; let firstGroup = $first) {
-                      @if (!firstGroup) {
-                        <div class="group-gap-separator d-flex justify-content-center my-2">
-                          @if (group.timeBehindLeader) {
-                            <c-badge color="warning" class="text-dark">{{ group.timeBehindLeader }}</c-badge>
-                          }
-                        </div>
-                      }
-                      <c-card class="mb-2">
-                        <c-card-header class="py-1 d-flex justify-content-between align-items-center">
+                  <c-col [xs]="12">
+                    <div [@raceList]="raceListKey(distance.processedRaces)">
+                      @for (race of distance.processedRaces; track race.id) {
+                        <div
+                          class="race-item d-flex justify-content-between align-items-center p-2 mb-1 rounded"
+                          [class.flash-update]="isRecentUpdate(race.lastUpdated)"
+                          [class.pos-up]="race.positionChange === 'up'"
+                          [class.pos-down]="race.positionChange === 'down'"
+                        >
                           <div class="d-flex align-items-center gap-2">
-                            <small class="fw-bold">{{ group.laps }} lap{{ group.laps !== 1 ? 's' : '' }}</small>
-                            @if (firstGroup) {
-                              <c-badge color="success">Head of race</c-badge>
+                            <c-badge class="start-num-badge badge-black">{{ padStartNumber(race.startNumber) }}</c-badge>
+                            <span>{{ race.competitorName }}</span>
+                          </div>
+                          <div class="d-flex align-items-center gap-2">
+                            <c-badge color="secondary">{{ race.lapsCount }} lap{{ race.lapsCount !== 1 ? 's' : '' }}</c-badge>
+                            @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
+                              <span class="race-time">{{ splitFormattedTime(race.formattedTotalTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formattedTotalTime)[1] }}</small></span>
+                            } @else {
+                              <span class="text-muted small">No Time</span>
                             }
                           </div>
-                          @if (group.leaderTime) {
-                            <small class="text-muted race-time">{{ splitFormattedTime(group.leaderTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(group.leaderTime)[1] }}</small></small>
-                          }
-                        </c-card-header>
-                        <c-card-body class="py-1 px-2">
-                          @for (race of group.races; track race.id; let firstRace = $first) {
-                            <div
-                              class="race-item-group d-flex justify-content-between align-items-center mb-1 rounded px-1"
-                              [class.flash-update]="isRecentUpdate(race.lastUpdated)"
-                              [class.pos-up]="race.positionChange === 'up'"
-                              [class.pos-down]="race.positionChange === 'down'"
-                            >
-                              <div class="d-flex align-items-center gap-2">
-                                <c-badge class="start-num-badge badge-black">{{ padStartNumber(race.startNumber) }}</c-badge>
-                                <span class="small">{{ race.competitorName }}</span>
-                              </div>
-                              @if (firstRace) {
-                                @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
-                                  <span class="race-time small">{{ splitFormattedTime(race.formattedTotalTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formattedTotalTime)[1] }}</small></span>
-                                }
-                              } @else {
-                                <span class="text-muted small fst-italic">{{ race.gapToAbove }}</span>
-                              }
-                            </div>
-                          }
-                        </c-card-body>
-                      </c-card>
-                    }
+                        </div>
+                      }
+                    </div>
                   </c-col>
                 }
               </c-row>
@@ -227,13 +180,15 @@
         }
       </c-accordion>
     } @else {
-      <!-- Skeleton placeholder while connecting / waiting for first data -->
-      <div class="skeleton-accordion mb-2 rounded" *ngFor="let i of [1,2,3]">
-        <div class="skeleton-accordion-header d-flex align-items-center gap-3 p-3 rounded">
-          <div class="skeleton-block skeleton-title-sm"></div>
-          <div class="skeleton-block skeleton-badge"></div>
+      <!-- Skeleton placeholder while connecting -->
+      @for (i of [1,2,3]; track i) {
+        <div class="skeleton-accordion mb-2 rounded">
+          <div class="skeleton-accordion-header d-flex align-items-center gap-3 p-3 rounded">
+            <div class="skeleton-block skeleton-title-sm"></div>
+            <div class="skeleton-block skeleton-badge"></div>
+          </div>
         </div>
-      </div>
+      }
     }
   </main>
 </div>
