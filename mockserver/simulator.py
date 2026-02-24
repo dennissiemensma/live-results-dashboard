@@ -13,8 +13,9 @@ Simulation model
 • This means faster skaters naturally accumulate more laps than slower ones,
   producing realistic lap-count differences and position swaps.
 • Once every competitor has completed MAX_LAPS the distance is marked
-  isLive=False. After RESTART_DELAY seconds the simulation resets and a new
-  race begins (isLive flips back to True).
+  isLive=False. Competitors that finished are kept in the standings but receive
+  no further laps. After RESTART_DELAY seconds (one minute) the simulation
+  resets and a new race begins (isLive flips back to True).
 
 Does NOT modify example.json on disk.
 """
@@ -41,7 +42,7 @@ BASE_LAP_TIME = 38.0    # seconds — mean lap time across the field
 PACE_STDDEV = 3.5       # std-dev for each competitor's personal pace
 LAP_NOISE = 0.8         # ± per-lap random noise on top of personal pace
 MAX_LAPS = 20           # total race laps (excl. warmup lap)
-RESTART_DELAY = 8       # seconds to wait after race ends before restarting
+RESTART_DELAY = 60      # seconds to wait after race ends before restarting (one minute)
 
 # ── load base data ────────────────────────────────────────────────────────────
 _base_path = Path(__file__).parent / "data" / "example.json"
