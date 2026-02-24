@@ -144,8 +144,8 @@ def _process(raw: dict) -> dict:
                 "finished_rank": None,
             })
 
-        # sort: laps desc, time asc
-        processed.sort(key=lambda r: (-r["laps_count"], r["total_time"] or "99:99:99"))
+        # sort: laps desc, time asc (numeric seconds — string comparison is wrong for times like "9.0" vs "23.4")
+        processed.sort(key=lambda r: (-r["laps_count"], _parse_seconds(r["total_time"]) if r["total_time"] else float("inf")))
         for i, r in enumerate(processed):
             r["position"] = i + 1
 

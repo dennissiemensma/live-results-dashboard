@@ -23,7 +23,7 @@ Each component:
 - [x] Mass start: omit first lap (warmup); extract total laps from distance title; badges in black
 - [x] Non-mass start: first lap counts; extract distance in meters from title; badges colored by `lane`
 - [x] Per competitor: `id`, `startNumber`, `name`, `heat`, `lane`, lap count, total time (highest lap `time`), formatted time (leading zeros stripped, truncated to 3 decimals)
-- [x] Sort competitors: laps descending, then total time ascending
+- [x] Sort competitors: laps descending, then total time ascending; time comparison uses parsed seconds (numeric), not lexicographic string order; competitors with no time sort last
 - [x] Detect position changes per competitor vs previous state
 - [x] Mass start: compute standings groups (same lap count + within configurable threshold); assign group number, gap to group ahead, time behind leader, intra-group gap, leader time; mark tail group; competitors with no total time are not grouped; **group threshold computed in frontend**
 - [x] Mass start: compute `finishing_line_after` (last competitor with a total time in standings order)
@@ -58,7 +58,7 @@ Each component:
 - [x] Auto-connect on page load; show pulsing placeholder animations while connecting
 - [x] "Clear all data" button: clears localStorage (threshold only) and reloads the page
 - [x] Group threshold input in top bar: numeric field (seconds, 0–10), updates grouping live, persisted in localStorage
-- [x] Max groups input in top bar: numeric field (default 4); `0` disables the group strip entirely; competitors beyond the last group are collected into a synthetic "Others" group with a red "Tail of race" badge; persisted in localStorage
+- [x] Max groups input in top bar: numeric field (default 4); `0` disables the group strip **and** the group separator lines in the standings entirely; competitors beyond the last group are collected into a synthetic "Tail of the race" group; persisted in localStorage
 
 #### Rendering
 - [x] HTML page title: `<event name> | Live Results Dashboard`; updated reactively when event name changes
@@ -83,7 +83,7 @@ Each component:
 ##### Competitor list row
 - [x] All competitors; mass start: single list (black badges); non-mass start: grouped by heat
 - [x] Group cards: group leader right-side slot shows **"Final lap"** label (blue) when `is_final_lap` is set, nothing otherwise; subsequent competitors show intra-group gap as before
-- [x] Sort: laps descending, then time ascending
+- [x] Sort: laps descending, then total time ascending (by `position` field from backend, assigned after numeric sort)
 - [x] "Final lap" (blue) / "Finished" (green) badge; finished competitor rows are slightly opaque
 - [x] All competitors show their `formatted_total_time`; no separate diff badge for finishers
 - [x] Rank prefix: "1ˢᵗ" style with raised superscript, light gray

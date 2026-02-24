@@ -231,6 +231,7 @@ export class DataService {
 
       if (dist.isMassStart) {
         this._recomputeGroups(dist);
+        this._updateFinishingLine(dist);
         this._scheduleGroupDebounce(comp.distance_id);
       } else {
         dist.heatGroups.forEach(hg => {
@@ -255,8 +256,10 @@ export class DataService {
       const distComps = this.competitorMap.get(distId);
       if (dist && distComps) {
         dist.processedRaces = Array.from(distComps.values()).sort((a, b) => a.position - b.position);
-        if (dist.isMassStart) this._recomputeGroups(dist);
-        else {
+        if (dist.isMassStart) {
+          this._recomputeGroups(dist);
+          this._updateFinishingLine(dist);
+        } else {
           dist.heatGroups.forEach(hg => {
             hg.races = this._resolveRaces(distId, hg.races.map(r => r.id));
           });
@@ -265,6 +268,12 @@ export class DataService {
       }
     }, 1000);
     this._sortDeferTimers.set(distId, timer);
+  }
+
+  /** Recomputes finishingLineAfter from current processedRaces order. */
+  private _updateFinishingLine(dist: ProcessedDistance) {
+    const withTime = dist.processedRaces.filter(r => r.total_time);
+    dist.finishingLineAfter = withTime.length > 0 ? withTime[withTime.length - 1].id : null;
   }
 
   private _timeDiff(a: string, b: string): number {
@@ -281,8 +290,16 @@ export class DataService {
 
   private _recomputeGroups(dist: ProcessedDistance) {
     const threshold = this._groupThreshold.value;
-    const unfinished = dist.processedRaces.filter(r => r.finished_rank == null && r.total_time);
+    const maxG = this._maxGroups.value;
     dist.processedRaces.forEach(r => { r.group_number = null; r.gap_to_above = null; });
+
+    // maxGroups = 0 means hide the group strip and all separators entirely
+    if (maxG === 0) {
+      dist.standingsGroups = [];
+      return;
+    }
+
+    const unfinished = dist.processedRaces.filter(r => r.finished_rank == null && r.total_time);
 
 
     let groups: { laps: number; races: CompetitorUpdate[] }[] = [];
@@ -350,7 +367,6 @@ export class DataService {
     }
 
     // Collect overflow competitors into synthetic Others group
-    const maxG = this._maxGroups.value;
     if (maxG > 0 && dist.standingsGroups.length > maxG) {
       const overflowGroups = dist.standingsGroups.slice(maxG);
       const othersRaces = overflowGroups.flatMap(g => g.races);
