@@ -272,12 +272,14 @@ export class DataService {
     this._sortDeferTimers.set(distId, timer);
   }
 
-  /** Recomputes finishingLineAfter: the last unfinished competitor (in standings order) who has a total_time. */
+  /** Recomputes finishingLineAfter: the last unfinished competitor (in current standings order) who has a total_time. */
   private _recomputeFinishingLine(dist: ProcessedDistance) {
-    const last = [...dist.processedRaces]
-      .reverse()
-      .find(r => r.total_time && r.finished_rank == null);
-    dist.finishingLineAfter = last?.id ?? null;
+    const distComps = this.competitorMap.get(dist.id);
+    if (!distComps) { dist.finishingLineAfter = null; return; }
+    const sorted = Array.from(distComps.values())
+      .filter(r => r.total_time && r.finished_rank == null)
+      .sort((a, b) => a.position - b.position);
+    dist.finishingLineAfter = sorted.length > 0 ? sorted[sorted.length - 1].id : null;
   }
 
   private _timeDiff(a: string, b: string): number {
@@ -330,9 +332,18 @@ export class DataService {
       const gnum = gi + 1;
       group.races.forEach((r, ri) => {
         r.group_number = gnum;
-        r.gap_to_above = ri > 0
-          ? `+${this._timeDiff(group.races[ri - 1].total_time, r.total_time).toFixed(3)}s`
-          : null;
+        if (ri === 0) {
+          r.gap_to_above = null;
+        } else {
+          const leader = group.races[0];
+          const lapDiff = leader.laps_count - r.laps_count;
+          if (lapDiff > 0 || !r.total_time || !leader.total_time) {
+            const diff = lapDiff > 0 ? lapDiff : 1;
+            r.gap_to_above = `+${diff} lap${diff === 1 ? '' : 's'}`;
+          } else {
+            r.gap_to_above = `+${this._timeDiff(leader.total_time, r.total_time).toFixed(3)}s`;
+          }
+        }
       });
 
       const first = group.races[0];
@@ -342,9 +353,9 @@ export class DataService {
       if (gi > 0) {
         const prevGroup = groups[gi - 1];
         const prevLast = prevGroup.races[prevGroup.races.length - 1];
-        const lapDiff = prevGroup.laps - group.laps;
+        const lapDiff = groups[0].laps - group.laps;
         if (lapDiff > 0) {
-          // Different lap count: express gap in laps, not time
+          // Behind the leader by at least one lap: express gap in laps vs leader
           gapToGroupAhead = `+${lapDiff} lap${lapDiff === 1 ? '' : 's'}`;
         } else if (prevLast.total_time && first.total_time) {
           gapToGroupAhead = `+${this._timeDiff(prevLast.total_time, first.total_time).toFixed(3)}s`;
@@ -376,6 +387,24 @@ export class DataService {
       const othersRaces = overflowGroups.flatMap(g => g.races);
       dist.standingsGroups = dist.standingsGroups.slice(0, maxG);
       dist.standingsGroups[dist.standingsGroups.length - 1].isLastGroup = false;
+
+      // Recompute gap_to_above for all overflow races relative to the overflow leader
+      const othersLeader = othersRaces[0];
+      othersRaces.forEach((r, ri) => {
+        if (ri === 0) {
+          r.gap_to_above = null;
+        } else {
+          const lapDiff = (othersLeader?.laps_count ?? 0) - r.laps_count;
+          if (lapDiff > 0) {
+            r.gap_to_above = `+${lapDiff} lap${lapDiff === 1 ? '' : 's'}`;
+          } else if (othersLeader?.total_time && r.total_time) {
+            r.gap_to_above = `+${this._timeDiff(othersLeader.total_time, r.total_time).toFixed(3)}s`;
+          } else {
+            r.gap_to_above = null;
+          }
+        }
+      });
+
       dist.standingsGroups.push({
         groupNumber: maxG + 1,
         laps: othersRaces[0]?.laps_count ?? 0,

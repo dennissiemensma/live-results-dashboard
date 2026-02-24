@@ -231,6 +231,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+// Count badge showing number of competitors in a group
+.group-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65em;
+  font-family: monospace;
+  font-weight: 600;
+  min-width: 1.5em;
+  padding: 0.1em 0.4em;
+  border-radius: 99px;
+  background-color: rgba(108, 117, 125, 0.25);
+  color: #6c757d;
+  line-height: 1.4;
+}
 // Gap badge between groups — warning yellow (reverted)
 .gap-badge {
   display: inline-block;
@@ -242,15 +257,6 @@
   background-color: var(--cui-warning, #f9b115);
   color: #212529;
   letter-spacing: 0.02em;
-}
-// "Final lap" label inside group card for the group leader
-.group-final-lap-label {
-  font-size: 0.7em;
-  font-weight: 600;
-  color: #0d6efd;
-  white-space: nowrap;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 // ===== SKELETON =====
 @keyframes shimmer {
