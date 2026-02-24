@@ -1,0 +1,50 @@
+<div class="bg-light min-vh-100 d-flex flex-row align-items-center">
+  <c-container>
+    <c-row class="justify-content-center">
+      <c-col [md]="8" [lg]="6">
+        <c-card>
+          <c-card-header>
+            <h1 class="mb-0">Live Results Dashboard</h1>
+          </c-card-header>
+          <c-card-body>
+            @if (dataService.status$ | async; as status) {
+              <div class="mb-3">
+                <span class="me-2">Connection Status:</span>
+                <c-badge
+                  [color]="
+                    status.status === 'Connected'
+                      ? 'success'
+                      : status.status === 'Connecting...'
+                        ? 'warning'
+                        : 'danger'
+                  "
+                >
+                  {{ status.status }}
+                </c-badge>
+              </div>
+
+              <div class="mb-3">
+                @if (status.status === 'Disconnected') {
+                  <button cButton color="primary" (click)="dataService.connect()">
+                    Connect to Live Results
+                  </button>
+                } @else {
+                  <button cButton color="secondary" (click)="dataService.disconnect()">
+                    Disconnect
+                  </button>
+                }
+              </div>
+            }
+
+            @for (error of dataService.errors$ | async; track $index) {
+              <c-alert color="danger" [dismissible]="true" (visibleChange)="$event === false && dataService.dismissError($index)">
+                {{ error }}
+              </c-alert>
+            }
+          </c-card-body>
+        </c-card>
+      </c-col>
+    </c-row>
+  </c-container>
+</div>
+

@@ -10,7 +10,7 @@ services:
     command: uvicorn app:app --host 0.0.0.0 --port 5000 --reload
     environment:
       - DATA_SOURCE_URL=http://mockserver:8080/api/data
-      - DATA_SOURCE_INTERVAL=2
+      - DATA_SOURCE_INTERVAL=1
     networks:
       - dashboard-net
 

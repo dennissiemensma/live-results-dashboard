@@ -1,0 +1,92 @@
+// Animations
+@keyframes flashGreen {
+  0% { background-color: #c3e6cb; }
+  60% { background-color: #c3e6cb; }
+  100% { background-color: transparent; }
+}
+.flash-update {
+  animation: flashGreen 3s ease-out forwards;
+}
+
+@keyframes slideInFromAbove {
+  0%   { transform: translateY(-6px); background-color: #cce5ff; }
+  40%  { transform: translateY(0);    background-color: #cce5ff; }
+  100% { transform: translateY(0);    background-color: transparent; }
+}
+@keyframes slideInFromBelow {
+  0%   { transform: translateY(6px);  background-color: #ffe5cc; }
+  40%  { transform: translateY(0);    background-color: #ffe5cc; }
+  100% { transform: translateY(0);    background-color: transparent; }
+}
+.pos-up {
+  animation: slideInFromAbove 1.8s ease-out forwards;
+}
+.pos-down {
+  animation: slideInFromBelow 1.8s ease-out forwards;
+}
+@keyframes glowRed {
+  0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+  70% { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+.glowing-badge {
+  animation: glowRed 1.5s infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.12); opacity: 0.85; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.last-update {
+  font-size: 0.9rem;
+  opacity: 0.85;
+  display: inline-block;
+  min-width: 5rem;
+  text-align: right;
+  &.pulse {
+    animation: pulse 0.6s ease-in-out;
+  }
+}
+
+// Fixed-width centered start number badges
+.badge-black,
+.start-num-badge {
+  font-family: monospace;
+  white-space: pre;
+  min-width: 2ch;
+  text-align: center;
+  display: inline-flex !important;
+  justify-content: center;
+}
+.badge-black {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+
+// Race time styling
+.race-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.time-decimal {
+  font-size: 0.78em;
+  color: var(--cui-secondary-color, #6c757d);
+}
+// Gap label
+.gap-label {
+  font-style: italic;
+  font-size: 0.8rem;
+}
+// Race item base
+.race-item {
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+// Right-column group race row — lighter border, same flash target
+.race-item-group {
+  border: 1px solid transparent;
+}
+// Group gap separator
+.group-gap-separator {
+  text-align: center;
+  margin: 0.5rem 0;
+}

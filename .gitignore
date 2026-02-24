@@ -1,3 +1,4 @@
 .idea/
+.agents/
 mockserver/mappings/example.json
 mockserver/__files/example.json

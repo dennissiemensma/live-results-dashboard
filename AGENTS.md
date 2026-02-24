@@ -1,1 +1,2 @@
-All agent CLI commands should start with a whitespace to avoid bloating local shell history.
+- Use .agents/ folder to store plans and keep track of them - if needed due to context limits
+- All agent CLI commands should start with a whitespace to avoid bloating local shell history..
