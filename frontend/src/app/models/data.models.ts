@@ -56,6 +56,10 @@ export interface HeatGroup {
 export interface ProcessedDistance extends Distance {
   isMassStart: boolean;
   processedRaces: ProcessedRace[];
+  /** Extracted meters from distance title (non-mass-start) */
+  distanceMeters?: number;
+  /** Extracted total laps from distance title (mass-start) */
+  totalLaps?: number;
   /** Heat-grouped races for non-mass-start left column */
   heatGroups?: HeatGroup[];
   /** Laps/time groups for mass-start right column */
