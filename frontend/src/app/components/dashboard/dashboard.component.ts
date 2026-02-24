@@ -23,18 +23,13 @@ import {
   state,
 } from '@angular/animations';
 
-// Verbose row-swap animation:
-// When the list re-orders, leaving items slide out and entering items slide in.
+// raceListAnimation: tracks list identity changes so Angular re-applies
+// per-row CSS classes (pos-up / pos-down) on reorder.
 export const raceListAnimation = trigger('raceList', [
   transition('* => *', [
-    query(':leave', [
-      animate('300ms ease-in', style({ opacity: 0, transform: 'translateX(-20px)' })),
-    ], { optional: true }),
     query(':enter', [
-      style({ opacity: 0, transform: 'translateX(20px)' }),
-      stagger(40, [
-        animate('300ms ease-out', style({ opacity: 1, transform: 'translateX(0)' })),
-      ]),
+      style({ opacity: 0 }),
+      stagger(0, [animate('150ms ease-out', style({ opacity: 1 }))]),
     ], { optional: true }),
   ]),
 ]);

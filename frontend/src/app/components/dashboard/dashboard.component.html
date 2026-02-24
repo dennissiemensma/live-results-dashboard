@@ -116,6 +116,14 @@
                                   <span class="text-muted fst-italic ms-1" style="font-size:0.75em;white-space:nowrap">{{ race.gap_to_above }}</span>
                                 }
                               </div>
+                              <!-- Finishing line inside group card -->
+                              @if (distance.finishingLineAfter && race.id === distance.finishingLineAfter) {
+                                <div class="finishing-line d-flex align-items-center gap-2">
+                                  <div class="finishing-line-bar flex-grow-1"></div>
+                                  <span class="finishing-line-label">Lap completed</span>
+                                  <div class="finishing-line-bar flex-grow-1"></div>
+                                </div>
+                              }
                             }
                           </div>
                         </c-card-body>

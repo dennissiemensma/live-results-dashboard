@@ -44,10 +44,6 @@ export class DataService {
   private _groupDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
   /** Timers that fire after flash-update animation to re-sort the standings list */
   private _sortDeferTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  /** Per-distance queue of competitor IDs that have crossed the lap line (in arrival order) */
-  private _finishingLineQueues = new Map<string, string[]>();
-  /** Per-distance timer stepping through the finishing line queue */
-  private _finishingLineTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   private _maxGroups = new BehaviorSubject<number>(this._loadMaxGroups());
   public maxGroups$ = this._maxGroups.asObservable();
@@ -222,7 +218,6 @@ export class DataService {
     const dist = this.distanceMap.get(comp.distance_id);
     if (dist) {
       const existing = distComps.get(comp.id);
-      const prevTotalTime = existing?.total_time ?? null;
 
       // Update the competitor object in-place so the flash animation plays
       // at the competitor's CURRENT row position.
@@ -238,11 +233,7 @@ export class DataService {
       target.is_final_lap = target.laps_remaining === 1;
 
       if (dist.isMassStart) {
-        // If this competitor has a time that is new or changed, they just crossed
-        // the lap line — enqueue them so the finishing line steps through in order.
-        if (comp.total_time && comp.total_time !== prevTotalTime) {
-          this._enqueueFinishingLine(comp.distance_id, comp.id);
-        }
+        this._recomputeFinishingLine(dist);
         this._recomputeGroups(dist);
         this._scheduleGroupDebounce(comp.distance_id);
       } else {
@@ -268,6 +259,7 @@ export class DataService {
       if (dist && distComps) {
         dist.processedRaces = Array.from(distComps.values()).sort((a, b) => a.position - b.position);
         if (dist.isMassStart) {
+          this._recomputeFinishingLine(dist);
           this._recomputeGroups(dist);
         } else {
           dist.heatGroups.forEach(hg => {
@@ -280,36 +272,12 @@ export class DataService {
     this._sortDeferTimers.set(distId, timer);
   }
 
-  /** Enqueues a competitor as having just crossed the lap line, then starts the step timer if idle. */
-  private _enqueueFinishingLine(distId: string, compId: string) {
-    let q = this._finishingLineQueues.get(distId);
-    if (!q) { q = []; this._finishingLineQueues.set(distId, q); }
-    q.push(compId);
-    // Only start the stepper if it isn't already running
-    if (!this._finishingLineTimers.has(distId)) {
-      this._stepFinishingLine(distId);
-    }
-  }
-
-  /** Pops the next competitor from the queue, moves the finishing line, publishes, then schedules the next step. */
-  private _stepFinishingLine(distId: string) {
-    const q = this._finishingLineQueues.get(distId);
-    if (!q || q.length === 0) {
-      this._finishingLineTimers.delete(distId);
-      return;
-    }
-    const nextId = q.shift()!;
-    const dist = this.distanceMap.get(distId);
-    if (dist) {
-      dist.finishingLineAfter = nextId;
-      this.ngZone.run(() => this._publishState());
-    }
-    // Schedule next step — 600ms gives a visible sweep through each crosser
-    const timer = setTimeout(() => {
-      this._finishingLineTimers.delete(distId);
-      this._stepFinishingLine(distId);
-    }, 600);
-    this._finishingLineTimers.set(distId, timer);
+  /** Recomputes finishingLineAfter: the last unfinished competitor (in standings order) who has a total_time. */
+  private _recomputeFinishingLine(dist: ProcessedDistance) {
+    const last = [...dist.processedRaces]
+      .reverse()
+      .find(r => r.total_time && r.finished_rank == null);
+    dist.finishingLineAfter = last?.id ?? null;
   }
 
   private _timeDiff(a: string, b: string): number {

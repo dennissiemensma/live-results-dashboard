@@ -50,7 +50,7 @@ LAP_MIN = 10.0          # minimum lap time (seconds)
 LAP_MAX = 30.0          # maximum lap time (seconds)
 LAP_NOISE = 1.0         # ± per-lap random noise on top of personal pace
 MAX_LAPS = 20           # total race laps (excl. warmup lap)
-MAX_COMPETITORS = 6     # TEMPORARY: limit field size for debugging (set to None to use all)
+MAX_COMPETITORS = None     # TEMPORARY: limit field size for debugging (set to None to use all)
 
 # ── load base data ────────────────────────────────────────────────────────────
 _base_path = Path(__file__).parent / "data" / "example.json"

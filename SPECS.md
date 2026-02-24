@@ -80,6 +80,7 @@ Each component:
 - [x] Sync highlight/animate updates between strip and standings list
 - [x] Animate position changes in both columns
 - [x] Group separator lines in standings list use the same naming: "Head of the race" / "Group X" / "Tail of the race"; first group reverts to "Group 1" once anyone finishes (mirrors card behaviour)
+- [x] Finishing line in group cards: rendered as an **inline DOM element** inside each group card's competitor list, below the last competitor in that card who has a `total_time` and is not yet finished (`finished_rank == null`); uses the same `finishingLineAfter` id and the same styling (solid 3px bright orange line, "Lap completed" label) as the standings list; the line only appears in the card that contains the matching competitor; updates immediately with no delay, moves naturally as card contents reorder
 
 ##### Competitor list row
 - [x] All competitors; mass start: single list (black badges); non-mass start: grouped by heat
@@ -91,8 +92,8 @@ Each component:
 - [x] Laps badge: "X/total" with total in small gray; rendered after the time field
 - [x] Time: decimals in small gray
 - [x] Animate row background to light yellow on update for 1s **only when the competitor received an actual backend update**; no highlight on restore or group recompute
-- [x] Animate position changes with row-swap animation; row position is NOT updated until after the 1s flash-update highlight completes (deferred sort: 1s debounce after last update for the distance)
-- [x] Finishing line: rendered as an **inline DOM element** in the list flow, below the competitor currently at `finishingLineAfter`; styled as a solid 3px bright orange line with a small "Lap completed" label; moves naturally with the list as rows reorder; no absolute positioning or JS measurement; each competitor whose `total_time` is new or changes is enqueued in arrival order; a 600ms step timer drains the queue one competitor at a time, moving `finishingLineAfter` to each in sequence so the line visibly sweeps through every crosser in the order they completed the lap
+- [x] Animate position changes with a two-row swap animation: when two competitors exchange positions, both rows slide past each other simultaneously using a CSS translate transition, so the movement is visually symmetrical; row position is NOT updated until after the 1s flash-update highlight completes (deferred sort: 1s debounce after last update for the distance)
+- [x] Finishing line: rendered as an **inline DOM element** in the list flow, below the competitor currently at `finishingLineAfter`; styled as a solid 3px bright orange line with a small "Lap completed" label; moves naturally with the list as rows reorder; no absolute positioning or JS measurement; `finishingLineAfter` is always the id of the last competitor (in standings order) who has a `total_time` and is not yet finished (`finished_rank == null`); updated immediately on every competitor update with no queuing or artificial delay; the line moves smoothly as the standings list reorders naturally
 - [x] Group separator lines with group name; styled as a thin 1px gray line; small top margin above each group divider
 - [x] Click to select competitor; reflected in both strip and standings; click again/elsewhere to deselect
 
