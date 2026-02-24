@@ -87,6 +87,10 @@
   outline-offset: -2px;
   background-color: rgba(13, 110, 253, 0.07) !important;
 }
+// Finished competitors — dimmed
+.race-finished {
+  opacity: 0.45;
+}
 // ===== LAPS BADGE =====
 .laps-badge {
   font-variant-numeric: tabular-nums;
@@ -131,21 +135,12 @@
 .standings-group-divider {
   margin-bottom: 0.35rem;
 }
-.standings-group-divider-bar {
-  height: 2px;
-  background: repeating-linear-gradient(
-    90deg,
-    #000 0px, #000 8px,
-    #fff 8px, #fff 14px
-  );
-  border: 1px solid #dee2e6;
-}
-.standings-group-divider-label {
-  font-size: 0.7em;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-  color: #6c757d;
+
+// Inline finishing-line style used at the top of each group in the standings list
+.group-finishing-line {
+  margin-top: 0.6rem;
+  margin-bottom: 0.35rem;
+  align-items: center;
 }
 
 // ===== FINISHING LINE =====
@@ -160,15 +155,12 @@
   pointer-events: none;
   transition: top 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   transform: translateY(-50%);
+  opacity: 0.65;
 }
 .finishing-line-bar {
-  height: 2px;
-  background: repeating-linear-gradient(
-    90deg,
-    #000 0px, #000 8px,
-    #fff 8px, #fff 14px
-  );
-  border: 1px solid #dee2e6;
+  height: 3px;
+  background: #000;
+  flex-shrink: 0;
 }
 .finishing-line-label {
   font-size: 0.7em;

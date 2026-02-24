@@ -75,14 +75,14 @@ Each component:
 ##### Competitor list row
 - [x] All competitors; mass start: single list (black badges); non-mass start: grouped by heat
 - [x] Sort: laps descending, then time ascending
-- [x] "Final lap" (green) / "Finished" (gray) badge
+- [x] "Final lap" (blue) / "Finished" (green) badge; finished competitor rows are slightly opaque
 - [x] Rank prefix: "1ˢᵗ" style with raised superscript, light gray
-- [x] Laps badge: "X/total" with total in small gray
+- [x] Laps badge: "X/total" with total in small gray; rendered after the time field
 - [x] Time: decimals in small gray
 - [x] Animate row background to light yellow on update for 3s; re-sort after update
 - [x] Animate position changes with row-swap animation
-- [x] Finishing line: rendered below last lap-completed competitor; animate to new position
-- [x] Group separator lines with group name (finishing-line style)
+- [x] Finishing line: rendered below last lap-completed competitor; animate to new position; styled as a solid 3px black line with a small "Lap completed" label
+- [x] Group separator lines with group name (finishing-line style); small top margin above each group divider
 - [x] Click to select competitor; reflected in both strip and standings; click again/elsewhere to deselect
 
 ## Mockserver

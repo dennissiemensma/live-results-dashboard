@@ -158,7 +158,7 @@
                       @for (race of distance.processedRaces; track race.id; let raceIdx = $index) {
                         <!-- Group finishing line above each group's first member -->
                         @if (groupForRace(distance, race.id); as grp) {
-                          <div class="group-finishing-line d-flex align-items-center gap-2" [class.mt-2]="raceIdx > 0">
+                          <div class="group-finishing-line d-flex align-items-center gap-2">
                             <div class="finishing-line-bar flex-grow-1"></div>
                             <span class="finishing-line-label">Group {{ grp.groupNumber }}</span>
                             <div class="finishing-line-bar flex-grow-1"></div>
@@ -172,6 +172,7 @@
                           [class.flash-update]="isRecentUpdate(race.lastUpdated)"
                           [class.pos-up]="race.position_change === 'up'"
                           [class.pos-down]="race.position_change === 'down'"
+                          [class.race-finished]="race.finished_rank != null"
                           [class.race-selected]="selectedRaceId === race.id"
                           (click)="selectRace(race.id)"
                         >
@@ -180,27 +181,27 @@
                             <c-badge class="start-num-badge badge-black">{{ padStartNumber(race.start_number) }}</c-badge>
                             <span>{{ race.name }}</span>
                             @if (race.finished_rank != null) {
-                              <c-badge color="secondary" style="font-size:0.7em">Finished</c-badge>
+                              <c-badge color="success" style="font-size:0.7em">Finished</c-badge>
                             } @else if (race.is_final_lap) {
-                              <c-badge color="success" style="font-size:0.7em">Final lap</c-badge>
+                              <c-badge color="primary" style="font-size:0.7em">Final lap</c-badge>
                             }
                           </div>
                           <div class="d-flex align-items-center gap-2">
-                            @if (distance.totalLaps) {
-                              <c-badge color="secondary" class="laps-badge">{{ race.laps_count }}<small class="laps-total">/{{ distance.totalLaps }}</small></c-badge>
-                            } @else {
-                              <c-badge color="secondary">{{ race.laps_count }} lap{{ race.laps_count !== 1 ? 's' : '' }}</c-badge>
-                            }
                             @if (race.formatted_total_time && race.formatted_total_time !== 'No Time') {
                               <span class="race-time">{{ splitFormattedTime(race.formatted_total_time)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formatted_total_time)[1] }}</small></span>
                             } @else {
                               <span class="text-muted small">No Time</span>
                             }
+                            @if (distance.totalLaps) {
+                              <c-badge color="secondary" class="laps-badge">{{ race.laps_count }}<small class="laps-total">/{{ distance.totalLaps }}</small></c-badge>
+                            } @else {
+                              <c-badge color="secondary">{{ race.laps_count }} lap{{ race.laps_count !== 1 ? 's' : '' }}</c-badge>
+                            }
                           </div>
                         </div>
                       }
                       <!-- Finishing line overlay -->
-                      @if (distance.finishingLineAfter && finishLineTopPx.get(distance.id)) {
+                      @if (finishLineTopPx.get(distance.id)) {
                         <div class="finishing-line d-flex align-items-center gap-2"
                              [style.top.px]="finishLineTopPx.get(distance.id)">
                           <div class="finishing-line-bar flex-grow-1"></div>

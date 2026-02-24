@@ -158,9 +158,12 @@ def _process(raw: dict) -> dict:
             r["position"] = i + 1
 
         # mass-start specific
-        finishing_line_after: str | None = None
         any_finished = False
         standings_groups: list[dict] = []
+
+        # finishing line sits below the last competitor that has a total time
+        with_time = [r for r in processed if r["total_time"]]
+        finishing_line_after: str | None = with_time[-1]["id"] if with_time else None
 
         if is_mass_start and total_laps:
             finish_rank = 1
