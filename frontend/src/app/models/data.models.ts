@@ -72,6 +72,8 @@ export interface StandingsGroup {
   gapToGroupAhead: string | null;
   timeBehindLeader: string | null;
   isLastGroup: boolean;
+  /** True when this is the synthetic overflow "Others" group */
+  isOthers: boolean;
   races: CompetitorUpdate[];
 }
 

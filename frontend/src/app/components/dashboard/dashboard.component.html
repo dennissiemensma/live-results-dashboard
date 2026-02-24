@@ -25,16 +25,22 @@
       <input
         id="groupThresholdInput"
         type="number"
-        min="0" step="0.5"
+        min="0" max="10" step="0.5"
         class="form-control form-control-sm threshold-input"
         [value]="dataService.groupThreshold"
         (change)="onThresholdChange($event)"
       />
       <span class="small text-white-50">s</span>
+      <label class="small text-white-50 text-nowrap mb-0 ms-2" for="maxGroupsInput">Max groups</label>
+      <input
+        id="maxGroupsInput"
+        type="number"
+        min="0" step="1"
+        class="form-control form-control-sm threshold-input"
+        [value]="dataService.maxGroups"
+        (change)="onMaxGroupsChange($event)"
+      />
     </div>
-    <button cButton color="light" variant="outline" size="sm" (click)="dataService.resetDashboard()">
-      Clear all data
-    </button>
   </header>
   <!-- ===== ERRORS ===== -->
   <div class="px-4 pt-2">
@@ -49,21 +55,24 @@
     @if ((sortedDistances$ | async)?.length) {
       <c-accordion [alwaysOpen]="true">
         @for (distance of sortedDistances$ | async; track distance.id) {
-          <c-accordion-item [visible]="distance.id === initialLiveId">
+          <c-accordion-item [visible]="distance.id === initialLiveId"
+            [class.accordion-done]="liveEventNumber !== null && distance.eventNumber < liveEventNumber">
             <ng-template cTemplateId="accordionHeader">
-              <div class="d-flex w-100 justify-content-between align-items-center me-3">
-                <span>
+              <div class="d-flex w-100 align-items-center gap-2 me-3">
+                @if (distance.isLive) {
+                  <c-badge color="danger" class="glowing-badge flex-shrink-0">Live</c-badge>
+                } @else if (liveEventNumber !== null && distance.eventNumber < liveEventNumber) {
+                  <c-badge color="dark" class="flex-shrink-0">Done</c-badge>
+                }
+                <span class="flex-grow-1 d-flex align-items-center gap-1">
                   {{ distance.name }}
                   @if (distance.isMassStart && distance.totalLaps) {
-                    <small class="text-muted ms-1">({{ distance.totalLaps }} laps)</small>
+                    <small class="text-muted">({{ distance.totalLaps }} laps)</small>
                   }
                   @if (!distance.isMassStart && distance.distanceMeters) {
-                    <small class="text-muted ms-1">({{ distance.distanceMeters }}m)</small>
+                    <small class="text-muted">({{ distance.distanceMeters }}m)</small>
                   }
                 </span>
-                @if (distance.isLive) {
-                  <c-badge color="danger" class="ms-2 glowing-badge">Live</c-badge>
-                }
               </div>
             </ng-template>
             <ng-template cTemplateId="accordionBody">
@@ -78,16 +87,17 @@
                       <c-card class="h-100">
                         <c-card-header class="py-1 px-2 d-flex justify-content-between align-items-center gap-2">
                           <div class="d-flex align-items-center gap-1 flex-wrap">
-                            <small class="fw-bold text-nowrap">Group {{ group.groupNumber }}</small>
-                            @if (firstGroup && !distance.anyFinished) {
+                            <small class="fw-bold text-nowrap">{{ group.isOthers ? 'Others' : 'Group ' + group.groupNumber }}</small>
+                            @if (group.isOthers) {
+                              <c-badge color="danger" class="text-nowrap" style="font-size:0.65em">Tail of race</c-badge>
+                            } @else if (firstGroup && !distance.anyFinished) {
                               <c-badge color="success" class="text-nowrap" style="font-size:0.65em">Head of race</c-badge>
-                            }
-                            @if (!firstGroup && group.gapToGroupAhead) {
-                              <c-badge color="warning" class="text-dark text-nowrap" style="font-size:0.65em">{{ group.gapToGroupAhead }}</c-badge>
+                            } @else if (!firstGroup && group.gapToGroupAhead) {
+                              <span class="gap-badge text-nowrap">{{ group.gapToGroupAhead }}</span>
                             }
                           </div>
                           @if (group.leaderTime) {
-                            <small class="text-muted race-time">{{ splitFormattedTime(group.leaderTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(group.leaderTime)[1] }}</small></small>
+                            <span class="group-leader-time">{{ splitFormattedTime(group.leaderTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(group.leaderTime)[1] }}</small></span>
                           }
                         </c-card-header>
                         <c-card-body class="py-1 px-2">
@@ -167,9 +177,7 @@
                 <!-- MASS-START: full-width standings -->
                 @if (distance.isMassStart) {
                   <c-col [xs]="12">
-                    <div class="finishing-container"
-                         [attr.data-finishing-container]="distance.id"
-                         [@raceList]="raceListKey(distance.processedRaces)">
+                    <div [@raceList]="raceListKey(distance.processedRaces)">
                       @for (race of distance.processedRaces; track race.id; let raceIdx = $index) {
                         <!-- Group finishing line above each group's first member -->
                         @if (groupForRace(distance, race.id); as grp) {
@@ -214,15 +222,14 @@
                             }
                           </div>
                         </div>
-                      }
-                      <!-- Finishing line overlay -->
-                      @if (finishLineTopPx.get(distance.id)) {
-                        <div class="finishing-line d-flex align-items-center gap-2"
-                             [style.top.px]="finishLineTopPx.get(distance.id)">
-                          <div class="finishing-line-bar flex-grow-1"></div>
-                          <span class="finishing-line-label">Lap completed</span>
-                          <div class="finishing-line-bar flex-grow-1"></div>
-                        </div>
+                        <!-- Inline finishing line: rendered below the last lap-completed competitor -->
+                        @if (distance.finishingLineAfter && race.id === distance.finishingLineAfter) {
+                          <div class="finishing-line d-flex align-items-center gap-2">
+                            <div class="finishing-line-bar flex-grow-1"></div>
+                            <span class="finishing-line-label">Lap completed</span>
+                            <div class="finishing-line-bar flex-grow-1"></div>
+                          </div>
+                        }
                       }
                     </div>
                   </c-col>

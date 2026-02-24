@@ -47,31 +47,32 @@ Each component:
 - [x] Reconnect every 5s on lost connection, show error
 
 ### Data layer
-- [x] No data processing in the frontend — consume backend messages directly
 - [x] Apply `distance_meta` and `competitor_update` messages to local state
-- [x] Persist state in local storage; restore on reconnect
 - [x] Incoming updates are queued; each render cycle is completed before starting the next
 - [x] Max render cycle duration configurable (`RENDER_INTERVAL_MS`, default `250ms`)
 - [x] Group threshold (seconds) is a local GUI setting (default `2.0s`), persisted in localStorage; frontend computes standings groups dynamically using this value; recomputes on every update and on threshold change
+- [x] No other state is persisted; backend replays full state on every WebSocket connect; "Clear all data" reloads the page
+- [x] Reconnect every 5s on lost connection, show error
 
 ### Dashboard
 - [x] Auto-connect on page load; show pulsing placeholder animations while connecting
-- [x] Button to clear local storage and refresh
-- [x] Group threshold input in top bar: numeric field (seconds), updates grouping live, persisted in localStorage
+- [x] "Clear all data" button: clears localStorage (threshold only) and reloads the page
+- [x] Group threshold input in top bar: numeric field (seconds, 0–10), updates grouping live, persisted in localStorage
+- [x] Max groups input in top bar: numeric field (default 4); `0` disables the group strip entirely; competitors beyond the last group are collected into a synthetic "Others" group with a red "Tail of race" badge; persisted in localStorage
 
 #### Rendering
 - [x] HTML page title: `<event name> | Live Results Dashboard`; updated reactively when event name changes
-- [x] Top bar: event `name` + connection status badge + seconds since last update
-- [x] Each distance in full-width accordion, sorted by `event_number` descending; accordion body height scales to fit its content (no fixed/max height clipping); expanded/active accordion header uses brand info color
-- [x] Button to clear local storage and refresh, labeled "Clear all data"
-- [x] Group threshold input in top bar: numeric field (seconds), updates grouping live, persisted in localStorage
-- [x] Group strip updates are debounced: only rendered after no competitor changes have been received for the group threshold duration, to let groups settle before re-rendering
+- [x] Top bar: event `name` + connection status badge + seconds since last update; dark/black background
+- [x] Each distance in full-width accordion, sorted by `event_number` descending; accordion body height scales to fit content; expanded accordion header uses dark slate (`#2c3e50`)
+- [x] Completed ("Done") accordion items are rendered at reduced opacity unless they are currently expanded
 - [x] Animate `is_live` badge; auto-expand live accordion on load (not on updates)
+- [x] Distance status badges rendered **before** the distance name in the accordion header: "Live" (red/animated) for the live distance; "Done" (black) for distances with a lower `event_number` than the live one; no badge for upcoming/not-yet-live distances
 - [x] `start_number` badges: fixed min-width for 2 digits, centered
+- [x] Group strip updates are debounced: only rendered after no competitor changes for the group threshold duration
 
 ##### Inside each accordion
 - [x] Mass start: top row of group cards; non-mass-start: group by heat in cards sorted by heat then time
-- [x] Group cards: title "Group X"; show total time for first, time delta for each subsequent
+- [x] Group cards: title "Group X"; show total time top-right in a distinct color (not muted gray); show time delta for each subsequent competitor
 - [x] Head group tagged "Head of the race" (green badge); remove badge after first finish
 - [x] Between groups: orange badge with time gap
 - [x] Remove finished competitors from groups
@@ -86,8 +87,8 @@ Each component:
 - [x] Laps badge: "X/total" with total in small gray; rendered after the time field
 - [x] Time: decimals in small gray
 - [x] Animate row background to light yellow on update for 1s **only when the competitor received an actual backend update**; no highlight on restore or group recompute
-- [x] Animate position changes with row-swap animation
-- [x] Finishing line: rendered below last lap-completed competitor; animate to new position; styled as a solid 3px bright orange line with a small "Lap completed" label
+- [x] Animate position changes with row-swap animation; row position is NOT updated until after the 1s flash-update highlight completes (deferred sort: 1s debounce after last update for the distance)
+- [x] Finishing line: rendered as an **inline DOM element** in the list flow, below the last lap-completed competitor (`finishingLineAfter`); styled as a solid 3px bright orange line with a small "Lap completed" label; moves naturally with the list as rows reorder; no absolute positioning or JS measurement
 - [x] Group separator lines with group name; styled as a thin 1px gray line; small top margin above each group divider
 - [x] Click to select competitor; reflected in both strip and standings; click again/elsewhere to deselect
 

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, AfterViewChecked, ElementRef } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import { DataService } from '../../services/data.service';
@@ -75,7 +75,7 @@ export const groupCardAnimation = trigger('groupCard', [
   styleUrls: ['./dashboard.component.scss'],
   animations: [raceListAnimation, groupCardAnimation],
 })
-export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
+export class DashboardComponent implements OnInit, OnDestroy {
   sortedDistances$: Observable<ProcessedDistance[]>;
   eventName$: Observable<string>;
   errors$: Observable<string[]>;
@@ -84,11 +84,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
   displayedGroups$: Observable<Map<string, StandingsGroup[]>>;
 
   initialLiveId: string | null = null;
+  liveEventNumber: number | null = null;
   pulseActive = false;
   selectedRaceId: string | null = null;
 
-  /** Per-distance finishing line top offset in px (for CSS transition) */
-  finishLineTopPx = new Map<string, number>();
 
   selectRace(id: string): void {
     this.selectedRaceId = this.selectedRaceId === id ? null : id;
@@ -99,13 +98,16 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (!isNaN(val)) this.dataService.setGroupThreshold(val);
   }
 
+  onMaxGroupsChange(event: Event): void {
+    const val = parseInt((event.target as HTMLInputElement).value, 10);
+    if (!isNaN(val)) this.dataService.setMaxGroups(val);
+  }
+
   private pulseTimeout: ReturnType<typeof setTimeout> | null = null;
   private dataSub: Subscription | null = null;
-  private distSub: Subscription | null = null;
   private titleSub: Subscription | null = null;
-  private _lastDistances: ProcessedDistance[] = [];
 
-  constructor(public dataService: DataService, private el: ElementRef, private titleService: Title) {
+  constructor(public dataService: DataService, private titleService: Title) {
     this.status$ = this.dataService.status$;
     this.eventName$ = this.dataService.eventName$;
     this.errors$ = this.dataService.errors$;
@@ -115,10 +117,13 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
       map((distances) => {
         if (!distances || distances.length === 0) return [];
         const sorted = [...distances].sort((a, b) => b.eventNumber - a.eventNumber);
-        // Capture the first live distance id only once
+        // Capture the first live distance id/eventNumber only once
         if (this.initialLiveId === null) {
           const live = sorted.find((d) => d.isLive);
-          if (live) this.initialLiveId = live.id;
+          if (live) {
+            this.initialLiveId = live.id;
+            this.liveEventNumber = live.eventNumber;
+          }
         }
         return sorted;
       }),
@@ -145,41 +150,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
       if (this.pulseTimeout) clearTimeout(this.pulseTimeout);
       this.pulseTimeout = setTimeout(() => (this.pulseActive = false), 2000);
     });
-    this.distSub = this.dataService.processedData$.subscribe(d => {
-      this._lastDistances = d;
-    });
   }
 
   ngOnDestroy() {
     this.dataSub?.unsubscribe();
-    this.distSub?.unsubscribe();
     this.titleSub?.unsubscribe();
     if (this.pulseTimeout) clearTimeout(this.pulseTimeout);
   }
 
-  ngAfterViewChecked() {
-    this.updateFinishingLines();
-  }
-
-  private updateFinishingLines() {
-    for (const dist of this._lastDistances) {
-      if (!dist.finishingLineAfter) continue;
-      const raceEl = this.el.nativeElement.querySelector(
-        `[data-race-id="${dist.finishingLineAfter}"]`
-      ) as HTMLElement | null;
-      const containerEl = this.el.nativeElement.querySelector(
-        `[data-finishing-container="${dist.id}"]`
-      ) as HTMLElement | null;
-      if (raceEl && containerEl) {
-        const containerRect = containerEl.getBoundingClientRect();
-        const raceRect = raceEl.getBoundingClientRect();
-        const top = Math.round(raceRect.bottom - containerRect.top);
-        if (this.finishLineTopPx.get(dist.id) !== top) {
-          this.finishLineTopPx.set(dist.id, top);
-        }
-      }
-    }
-  }
 
   isRecentUpdate(timestamp: number | undefined): boolean {
     if (!timestamp) return false;

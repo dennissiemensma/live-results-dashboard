@@ -16,7 +16,10 @@ export interface BackendStatus {
 
 const RENDER_INTERVAL_MS = 250;
 const DEFAULT_GROUP_THRESHOLD = 2.0;
+const MAX_GROUP_THRESHOLD = 10.0;
+const DEFAULT_MAX_GROUPS = 4;
 const STORAGE_KEY_THRESHOLD = 'groupThresholdSec';
+const STORAGE_KEY_MAX_GROUPS = 'maxGroups';
 
 @Injectable({ providedIn: 'root' })
 export class DataService {
@@ -39,11 +42,17 @@ export class DataService {
   private _displayedGroups = new BehaviorSubject<Map<string, StandingsGroup[]>>(new Map());
   public displayedGroups$ = this._displayedGroups.asObservable();
   private _groupDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Timers that fire after flash-update animation to re-sort the standings list */
+  private _sortDeferTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  private _maxGroups = new BehaviorSubject<number>(this._loadMaxGroups());
+  public maxGroups$ = this._maxGroups.asObservable();
 
   get groupThreshold(): number { return this._groupThreshold.value; }
+  get maxGroups(): number { return this._maxGroups.value; }
 
   setGroupThreshold(value: number) {
-    const clamped = Math.max(0, value);
+    const clamped = Math.min(MAX_GROUP_THRESHOLD, Math.max(0, value));
     this._groupThreshold.next(clamped);
     try { localStorage.setItem(STORAGE_KEY_THRESHOLD, String(clamped)); } catch (e) { /* noop */ }
     for (const dist of this.distanceMap.values()) {
@@ -56,6 +65,27 @@ export class DataService {
     this._groupDebounceTimers.clear();
     this._flushDisplayedGroups();
     this.ngZone.run(() => this._publishState());
+  }
+
+  setMaxGroups(value: number) {
+    const clamped = Math.max(0, Math.round(value));
+    this._maxGroups.next(clamped);
+    try { localStorage.setItem(STORAGE_KEY_MAX_GROUPS, String(clamped)); } catch (e) { /* noop */ }
+    for (const dist of this.distanceMap.values()) {
+      if (dist.isMassStart) this._recomputeGroups(dist);
+    }
+    for (const timer of this._groupDebounceTimers.values()) clearTimeout(timer);
+    this._groupDebounceTimers.clear();
+    this._flushDisplayedGroups();
+    this.ngZone.run(() => this._publishState());
+  }
+
+  private _loadMaxGroups(): number {
+    try {
+      const v = localStorage.getItem(STORAGE_KEY_MAX_GROUPS);
+      if (v !== null) return Math.max(0, parseInt(v, 10));
+    } catch (e) { /* noop */ }
+    return DEFAULT_MAX_GROUPS;
   }
 
   private _loadThreshold(): number {
@@ -73,7 +103,6 @@ export class DataService {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private ngZone: NgZone) {
-    this._restoreFromStorage();
     this.connect();
   }
 
@@ -172,7 +201,6 @@ export class DataService {
       heat: hg.heat,
       races: this._resolveRaces(meta.id, hg.race_ids),
     }));
-    this._saveDistanceToStorage(dist);
     return true;
   }
 
@@ -181,11 +209,21 @@ export class DataService {
     this._lastDataReceived.next(comp.lastUpdated);
     let distComps = this.competitorMap.get(comp.distance_id);
     if (!distComps) { distComps = new Map(); this.competitorMap.set(comp.distance_id, distComps); }
-    distComps.set(comp.id, comp);
-    this._saveCompetitorToStorage(comp);
+
     const dist = this.distanceMap.get(comp.distance_id);
     if (dist) {
-      dist.processedRaces = Array.from(distComps.values()).sort((a, b) => a.position - b.position);
+      // Update the competitor object in-place so the flash animation plays
+      // at the competitor's CURRENT row position.
+      const existing = distComps.get(comp.id);
+      if (existing) {
+        Object.assign(existing, comp);
+      } else {
+        // New competitor: add to map and immediately append to processedRaces
+        // (deferred sort will place them correctly after 1s)
+        distComps.set(comp.id, comp);
+        dist.processedRaces = [...dist.processedRaces, comp];
+      }
+
       if (dist.isMassStart) {
         this._recomputeGroups(dist);
         this._scheduleGroupDebounce(comp.distance_id);
@@ -194,8 +232,34 @@ export class DataService {
           hg.races = this._resolveRaces(comp.distance_id, hg.races.map(r => r.id));
         });
       }
+
+      // Defer the sort until the flash-update animation (1s) has completed.
+      this._scheduleSortDefer(comp.distance_id);
+    } else {
+      distComps.set(comp.id, comp);
     }
     return true;
+  }
+
+  private _scheduleSortDefer(distId: string) {
+    const existing = this._sortDeferTimers.get(distId);
+    if (existing) clearTimeout(existing);
+    const timer = setTimeout(() => {
+      this._sortDeferTimers.delete(distId);
+      const dist = this.distanceMap.get(distId);
+      const distComps = this.competitorMap.get(distId);
+      if (dist && distComps) {
+        dist.processedRaces = Array.from(distComps.values()).sort((a, b) => a.position - b.position);
+        if (dist.isMassStart) this._recomputeGroups(dist);
+        else {
+          dist.heatGroups.forEach(hg => {
+            hg.races = this._resolveRaces(distId, hg.races.map(r => r.id));
+          });
+        }
+        this.ngZone.run(() => this._publishState());
+      }
+    }, 1000);
+    this._sortDeferTimers.set(distId, timer);
   }
 
   private _timeDiff(a: string, b: string): number {
@@ -215,7 +279,7 @@ export class DataService {
     const unfinished = dist.processedRaces.filter(r => r.finished_rank == null && r.total_time);
     dist.processedRaces.forEach(r => { r.group_number = null; r.gap_to_above = null; });
 
-    const groups: { laps: number; races: CompetitorUpdate[] }[] = [];
+    let groups: { laps: number; races: CompetitorUpdate[] }[] = [];
     let cur: { laps: number; races: CompetitorUpdate[] } | null = null;
 
     for (const r of unfinished) {
@@ -265,12 +329,32 @@ export class DataService {
         gapToGroupAhead,
         timeBehindLeader,
         isLastGroup: false,
+        isOthers: false,
         races: group.races,
       } as StandingsGroup;
     });
 
     if (dist.standingsGroups.length > 0) {
       dist.standingsGroups[dist.standingsGroups.length - 1].isLastGroup = true;
+    }
+
+    // Collect overflow competitors into synthetic Others group
+    const maxG = this._maxGroups.value;
+    if (maxG > 0 && dist.standingsGroups.length > maxG) {
+      const overflowGroups = dist.standingsGroups.slice(maxG);
+      const othersRaces = overflowGroups.flatMap(g => g.races);
+      dist.standingsGroups = dist.standingsGroups.slice(0, maxG);
+      dist.standingsGroups[dist.standingsGroups.length - 1].isLastGroup = false;
+      dist.standingsGroups.push({
+        groupNumber: maxG + 1,
+        laps: othersRaces[0]?.laps_count ?? 0,
+        leaderTime: null,
+        gapToGroupAhead: null,
+        timeBehindLeader: null,
+        isLastGroup: true,
+        isOthers: true,
+        races: othersRaces,
+      });
     }
   }
 
@@ -305,50 +389,6 @@ export class DataService {
     this._processedData.next(distances);
   }
 
-  private _saveDistanceToStorage(dist: ProcessedDistance) {
-    try {
-      const meta = { ...dist, processedRaces: [], standingsGroups: [], heatGroups: [] };
-      localStorage.setItem(`dist_${dist.id}`, JSON.stringify(meta));
-    } catch (e) { /* noop */ }
-  }
-
-  private _saveCompetitorToStorage(comp: CompetitorUpdate) {
-    try {
-      localStorage.setItem(`comp_${comp.distance_id}_${comp.id}`, JSON.stringify(comp));
-    } catch (e) { /* noop */ }
-  }
-
-  private _restoreFromStorage() {
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)!;
-        if (key.startsWith('dist_')) {
-          const dist: ProcessedDistance = JSON.parse(localStorage.getItem(key)!);
-          dist.processedRaces = []; dist.standingsGroups = []; dist.heatGroups = [];
-          this.distanceMap.set(dist.id, dist);
-        }
-      }
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)!;
-        if (key.startsWith('comp_')) {
-          const comp: CompetitorUpdate = JSON.parse(localStorage.getItem(key)!);
-          comp.lastUpdated = undefined; // don't flash on restore
-          let distComps = this.competitorMap.get(comp.distance_id);
-          if (!distComps) { distComps = new Map(); this.competitorMap.set(comp.distance_id, distComps); }
-          distComps.set(comp.id, comp);
-        }
-      }
-      for (const [distId, dist] of this.distanceMap) {
-        const comps = this.competitorMap.get(distId);
-        if (comps) {
-          dist.processedRaces = Array.from(comps.values()).sort((a, b) => a.position - b.position);
-          if (dist.isMassStart) this._recomputeGroups(dist);
-        }
-      }
-      this._flushDisplayedGroups();
-      this._publishState();
-    } catch (e) { /* noop */ }
-  }
 
   addError(msg: string) {
     this._errors.next([...this._errors.value, msg]);
