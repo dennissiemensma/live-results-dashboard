@@ -30,11 +30,15 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
+from faker import Faker
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
+
+_fake = Faker()
+Faker.seed(0)  # reproducible across restarts until explicitly re-seeded each race
 
 # ── config ────────────────────────────────────────────────────────────────────
 TICK_INTERVAL = 0.5     # seconds between simulation ticks (fine-grained)
@@ -100,11 +104,25 @@ _race_finished = False
 _race_end_time: float = 0.0
 
 
+def _assign_fake_names(state: dict) -> None:
+    """Replace every competitor name in the live mass-start distance with a
+    freshly generated fake full name.  Re-seeded with a random seed each call
+    so each simulated race has a different field of competitors."""
+    Faker.seed(random.randint(0, 2**32))
+    dist = _find_live_mass_start(state)
+    if not dist:
+        return
+    for race in dist["races"]:
+        race["competitor"]["name"] = _fake.name()
+    log.info("Assigned fake names to %d competitors", len(dist["races"]))
+
+
 def _init_simulation() -> None:
     """Build fresh _state and _sims from the base data."""
     global _state, _sims, _race_finished, _race_end_time
 
     _state = copy.deepcopy(_base_data)
+    _assign_fake_names(_state)
     _sims = {}
     _race_finished = False
     _race_end_time = 0.0

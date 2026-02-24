@@ -126,3 +126,4 @@ Specs:
   - [x] When all competitors have finished (reached MAX_LAPS), mark the distance `isLive: false` and pause, then restart the whole simulation after a minute
   - [x] Expose a `POST /api/reset` endpoint to restart the simulation immediately
   - [x] Output to logs when a change is mocked
+  - [x] Generate fake names for competitors instead of using the ones in `example.json` — use the `faker` lib

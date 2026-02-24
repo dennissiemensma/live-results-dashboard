@@ -76,19 +76,13 @@
                           }
                         </c-card-header>
                         <c-card-body class="py-1 px-2">
-                          @if (!firstGroup && group.timeBehindLeader) {
-                            <div class="text-center mb-1">
-                              <c-badge color="warning" class="text-dark" style="font-size:0.7em">{{ group.timeBehindLeader }}</c-badge>
-                            </div>
-                          }
                           <div [@raceList]="raceListKey(group.races)">
                             @for (race of group.races; track race.id; let firstRace = $first) {
                               <div
                                 class="race-item-group d-flex justify-content-between align-items-center rounded px-1 mb-1"
                                 [class.flash-update]="isRecentUpdate(race.lastUpdated)"
                                 [class.pos-up]="race.positionChange === 'up'"
-                                [class.pos-down]="race.positionChange === 'down'"
-                                [class.race-selected]="selectedRaceId === race.id"
+                                [class.pos-down]="race.positionChange === 'down'" [class.race-selected]="selectedRaceId === race.id"
                                 (click)="selectRace(race.id)"
                               >
                                 <div class="d-flex align-items-center gap-1">
