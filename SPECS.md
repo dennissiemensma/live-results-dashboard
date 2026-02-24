@@ -80,12 +80,13 @@ Specs:
           - [x] group competitors by laps count, then by total time if they are within 2 seconds of each other
           - Render each group in a card with the following:
             - [x] Title should be "group X" where X is the group number starting from 1 for the head of the race
-            - [x] Top group should be tagged as "Head of the race" in a green badge as well
+            - [ ] Top group should be tagged as "Head of the race" in a green badge as well. Remove badge after the first finish.
             - [x] Within each group
               - sort by total time ascending
               - show the total time for the first competitor in the group
               - then show the time difference for each subsequent competitor in the group, compared to each one above another
             - [x] Between each group, show the time difference between the first competitor of the group behind and the last competitor of the next group ahead. Show this in an orange badge after the group name.
+            - [x] Remove competitor from all groups when they finished
           - [x] Apply updates that are animated in the left column similarly in the right column, so that it's clear which competitor got updated in both columns
             - [x] Animate position changes too, so that it's clear when a competitor moves up or down in the ranking
               
@@ -99,13 +100,16 @@ Specs:
             - [x] show each item in `races`
             - [x] show `competitor` object `startNumber` in badge format (use the `lane` color in badge) and  `name`
             - [x] sort by count of `laps` descending, secondary sort by `time` ascending
-            - [x] Add a badge after the name with "Final lap" if they have one remaining
+            - [x] Add a badge after the name with "Final lap" if they have one remaining. Change it to "Finished". Use a green badge for "Final lap" and gray badge for finished.
+            - [x] Add rank in front of row, e.g. rank = "1ˢᵗ" where "ˢᵗ" is raised. In light gray.
             - [x] Show the `laps` count and remaining in badge, e.g. "Laps: 3/10", rendering the total laps in small gray text
             - [x] Show the time along it, make decimals gray and small, also make sure to remove any leading zeroes and drop (do not round) any precision over 3 decimals (e.g. `00:01:23.4560000` should be shown as `1:23.456`)
-            - [x] On any update of a race item (use `time` value to determine if it is an update), animate the background color of the item to light green for a few seconds to indicate an update. Resort races if needed.
-            - [x] Animate position changes too, so that it's clear when a competitor moves up or down in the ranking - use a verbose animation swapping rows
-            - [x] Keep track of the finishing line and render it below the last competitor that completed a lap in each data update.
-            - [x] Render a small gap between the groups of competitors
+            - [x] On any update of a race item (use `time` value to determine if it is an update), animate the background color of the item to light yellow for a few seconds to indicate an update. Resort races if needed.
+            - [x] Animate position changes too, so that it's clear when a competitor moves up or down in the ranking - use a verbose animation swapping rows - do not use color highlighting for position changes, only animation
+            - [x] Keep track of the finishing line and render it below the last competitor that completed a lap in each data update. 
+              - Only render once per update. Wait until the last competitor in the update was rendered
+              - Animate the position of the finishing line to the latter.
+            - [x] Render a line the groups of competitors, add the name of the group too.
             - Selection:
               - [x] Clicking a competitor row selects them — highlighted with a distinct border/background
               - [x] The selection is reflected in both the strip and the standings list simultaneously
@@ -117,10 +121,11 @@ Specs:
 - [x] Do not alter or remove `example.json` (you may relocate it)
 - [x] Python 3.14 + FastAPI, mirrors src into container
 - [x] Basic code formatting tools (ruff)
-- Dynamically mock the `example.json` data to change every few seconds
+- Dynamically mock the `example.json` data to simulate a match:
   - [x] Only applies to mass start distance that is live. Simulate competitors doing laps
   - [x] Each competitor has a stable personal pace (drawn once at race start) with small per-lap noise, so rankings change gradually and realistically
   - [x] Competitors complete laps independently — not all at the same tick — based on their pace
+  - [x] Minimum lap duration 10 seconds, maximum lap duration 30 seconds, with a random noise of +/- 5 seconds
   - [x] Faster competitors naturally lap slower ones over time, producing different lap counts between competitors
   - [x] Do not update competitors after they finished (reached MAX_LAPS), but keep them in the standings
   - [x] When all competitors have finished (reached MAX_LAPS), mark the distance `isLive: false` and pause, then restart the whole simulation after a minute

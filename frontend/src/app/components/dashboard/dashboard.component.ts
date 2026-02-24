@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, AfterViewChecked, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataService } from '../../services/data.service';
 import { ProcessedDistance } from '../../models/data.models';
@@ -54,7 +54,7 @@ export const raceListAnimation = trigger('raceList', [
   styleUrls: ['./dashboard.component.scss'],
   animations: [raceListAnimation],
 })
-export class DashboardComponent implements OnInit, OnDestroy {
+export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
   sortedDistances$: Observable<ProcessedDistance[]>;
   eventName$: Observable<string>;
   errors$: Observable<string[]>;
@@ -65,14 +65,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
   pulseActive = false;
   selectedRaceId: string | null = null;
 
+  /** Per-distance finishing line top offset in px (for CSS transition) */
+  finishLineTopPx = new Map<string, number>();
+
   selectRace(id: string): void {
     this.selectedRaceId = this.selectedRaceId === id ? null : id;
   }
 
   private pulseTimeout: ReturnType<typeof setTimeout> | null = null;
   private dataSub: Subscription | null = null;
+  private distSub: Subscription | null = null;
+  private _lastDistances: ProcessedDistance[] = [];
 
-  constructor(public dataService: DataService) {
+  constructor(public dataService: DataService, private el: ElementRef) {
     this.status$ = this.dataService.status$;
     this.eventName$ = this.dataService.eventName$;
     this.errors$ = this.dataService.errors$;
@@ -108,11 +113,39 @@ export class DashboardComponent implements OnInit, OnDestroy {
       if (this.pulseTimeout) clearTimeout(this.pulseTimeout);
       this.pulseTimeout = setTimeout(() => (this.pulseActive = false), 2000);
     });
+    this.distSub = this.dataService.processedData$.subscribe(d => {
+      this._lastDistances = d;
+    });
   }
 
   ngOnDestroy() {
     this.dataSub?.unsubscribe();
+    this.distSub?.unsubscribe();
     if (this.pulseTimeout) clearTimeout(this.pulseTimeout);
+  }
+
+  ngAfterViewChecked() {
+    this.updateFinishingLines();
+  }
+
+  private updateFinishingLines() {
+    for (const dist of this._lastDistances) {
+      if (!dist.finishingLineAfter) continue;
+      const raceEl = this.el.nativeElement.querySelector(
+        `[data-race-id="${dist.finishingLineAfter}"]`
+      ) as HTMLElement | null;
+      const containerEl = this.el.nativeElement.querySelector(
+        `[data-finishing-container="${dist.id}"]`
+      ) as HTMLElement | null;
+      if (raceEl && containerEl) {
+        const containerRect = containerEl.getBoundingClientRect();
+        const raceRect = raceEl.getBoundingClientRect();
+        const top = Math.round(raceRect.bottom - containerRect.top);
+        if (this.finishLineTopPx.get(dist.id) !== top) {
+          this.finishLineTopPx.set(dist.id, top);
+        }
+      }
+    }
   }
 
   isRecentUpdate(timestamp: number | undefined): boolean {
@@ -134,6 +167,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const dot = t.indexOf('.');
     if (dot === -1) return [t, ''];
     return [t.substring(0, dot), '.' + t.substring(dot + 1)];
+  }
+
+  /** Returns [base, superscript] for ordinal, e.g. ordinalSuffix(1) → ['1','st'] */
+  ordinalSuffix(n: number): [string, string] {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return [String(n), s[(v - 20) % 10] ?? s[v] ?? s[0]];
   }
 
   /** Stable animation state key — changes whenever the sort order of the list changes. */

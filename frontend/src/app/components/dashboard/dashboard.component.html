@@ -150,7 +150,9 @@
                 <!-- MASS-START: full-width standings, no right column -->
                 @if (distance.isMassStart) {
                   <c-col [xs]="12">
-                    <div [@raceList]="raceListKey(distance.processedRaces)">
+                    <div class="finishing-container"
+                         [attr.data-finishing-container]="distance.id"
+                         [@raceList]="raceListKey(distance.processedRaces)">
                       @for (race of distance.processedRaces; track race.id; let raceIdx = $index) {
                         <!-- Group gap separator between standings groups -->
                         @if (raceIdx > 0 && isFirstInNewGroup(distance, raceIdx)) {
@@ -158,6 +160,7 @@
                         }
                         <div
                           class="race-item d-flex justify-content-between align-items-center p-2 mb-1 rounded"
+                          [attr.data-race-id]="race.id"
                           [class.flash-update]="isRecentUpdate(race.lastUpdated)"
                           [class.pos-up]="race.positionChange === 'up'"
                           [class.pos-down]="race.positionChange === 'down'"
@@ -165,10 +168,13 @@
                           (click)="selectRace(race.id)"
                         >
                           <div class="d-flex align-items-center gap-2">
+                            <span class="rank-label text-muted">{{ ordinalSuffix(raceIdx + 1)[0] }}<sup class="rank-sup">{{ ordinalSuffix(raceIdx + 1)[1] }}</sup></span>
                             <c-badge class="start-num-badge badge-black">{{ padStartNumber(race.startNumber) }}</c-badge>
                             <span>{{ race.competitorName }}</span>
-                            @if (race.isFinalLap) {
-                              <c-badge color="danger" style="font-size:0.7em">Final lap</c-badge>
+                            @if (race.finishedRank != null) {
+                              <c-badge color="secondary" style="font-size:0.7em">Finished</c-badge>
+                            } @else if (race.isFinalLap) {
+                              <c-badge color="success" style="font-size:0.7em">Final lap</c-badge>
                             }
                           </div>
                           <div class="d-flex align-items-center gap-2">
@@ -184,14 +190,15 @@
                             }
                           </div>
                         </div>
-                        <!-- Finishing line: rendered below the last competitor updated this tick -->
-                        @if (distance.finishingLineAfter && race.id === distance.finishingLineAfter) {
-                          <div class="finishing-line d-flex align-items-center gap-2 my-1">
-                            <div class="finishing-line-bar flex-grow-1"></div>
-                            <span class="finishing-line-label">Lap completed</span>
-                            <div class="finishing-line-bar flex-grow-1"></div>
-                          </div>
-                        }
+                      }
+                      <!-- Finishing line: single absolutely-positioned overlay, transitions to the correct row -->
+                      @if (distance.finishingLineAfter && finishLineTopPx.get(distance.id)) {
+                        <div class="finishing-line d-flex align-items-center gap-2"
+                             [style.top.px]="finishLineTopPx.get(distance.id)">
+                          <div class="finishing-line-bar flex-grow-1"></div>
+                          <span class="finishing-line-label">Lap completed</span>
+                          <div class="finishing-line-bar flex-grow-1"></div>
+                        </div>
                       }
                     </div>
                   </c-col>

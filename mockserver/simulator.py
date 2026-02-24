@@ -6,12 +6,13 @@ mutated in real-time to simulate a realistic inline-skating mass-start race.
 Simulation model
 ────────────────
 • Each competitor is assigned a stable personal pace (seconds/lap) once at
-  race start, drawn from a normal distribution around BASE_LAP_TIME.
-• A small per-lap noise term is added on top so lap times fluctuate slightly.
+  race start, drawn uniformly from [LAP_MIN, LAP_MAX] (10–30 s).
+• A per-lap noise of ±LAP_NOISE (5 s) is applied each lap, clamped to
+  [LAP_MIN - LAP_NOISE, LAP_MAX + LAP_NOISE].
 • Competitors are ticked independently: a competitor completes their next lap
   once wall-clock time ≥ their scheduled next-lap timestamp.
-• This means faster skaters naturally accumulate more laps than slower ones,
-  producing realistic lap-count differences and position swaps.
+• Faster skaters naturally accumulate more laps than slower ones, producing
+  realistic lap-count differences and position swaps.
 • Once every competitor has completed MAX_LAPS the distance is marked
   isLive=False. Competitors that finished are kept in the standings but receive
   no further laps. After RESTART_DELAY seconds (one minute) the simulation
@@ -42,9 +43,9 @@ Faker.seed(0)  # reproducible across restarts until explicitly re-seeded each ra
 
 # ── config ────────────────────────────────────────────────────────────────────
 TICK_INTERVAL = 0.5     # seconds between simulation ticks (fine-grained)
-BASE_LAP_TIME = 38.0    # seconds — mean lap time across the field
-PACE_STDDEV = 3.5       # std-dev for each competitor's personal pace
-LAP_NOISE = 0.8         # ± per-lap random noise on top of personal pace
+LAP_MIN = 10.0          # minimum lap time (seconds)
+LAP_MAX = 30.0          # maximum lap time (seconds)
+LAP_NOISE = 5.0         # ± per-lap random noise on top of personal pace
 MAX_LAPS = 20           # total race laps (excl. warmup lap)
 RESTART_DELAY = 60      # seconds to wait after race ends before restarting (one minute)
 
@@ -141,7 +142,7 @@ def _init_simulation() -> None:
         # Warm up lap is already in laps[0]; seed elapsed from its time
         warmup_time = _parse_time(race["laps"][0]["time"]) if race["laps"] else 0.0
 
-        pace = max(20.0, random.gauss(BASE_LAP_TIME, PACE_STDDEV))
+        pace = random.uniform(LAP_MIN, LAP_MAX)
         # Stagger first lap completion slightly so they don't all fire at once
         jitter = random.uniform(0.0, pace * 0.25)
         _sims[rid] = CompetitorSim(
@@ -182,9 +183,9 @@ def _tick() -> None:
         if now < sim.next_lap_at:
             continue
 
-        # Competitor completes a lap
-        lap_secs = sim.personal_pace + random.uniform(-LAP_NOISE, LAP_NOISE)
-        lap_secs = max(20.0, lap_secs)
+        # Competitor completes a lap — pace ± noise, clamped to valid range
+        noise = random.uniform(-LAP_NOISE, LAP_NOISE)
+        lap_secs = max(LAP_MIN - LAP_NOISE, min(LAP_MAX + LAP_NOISE, sim.personal_pace + noise))
         sim.elapsed_race_time += lap_secs
         sim.laps_done += 1
 
@@ -200,9 +201,10 @@ def _tick() -> None:
             start_num, name, sim.laps_done, MAX_LAPS, lap_secs, _fmt(sim.elapsed_race_time),
         )
 
-        # Schedule next lap
-        next_pace = sim.personal_pace + random.uniform(-LAP_NOISE, LAP_NOISE)
-        sim.next_lap_at = now + max(20.0, next_pace)
+        # Schedule next lap with fresh noise
+        next_noise = random.uniform(-LAP_NOISE, LAP_NOISE)
+        next_lap = max(LAP_MIN - LAP_NOISE, min(LAP_MAX + LAP_NOISE, sim.personal_pace + next_noise))
+        sim.next_lap_at = now + next_lap
         any_updated = True
 
     if any_updated:
@@ -239,8 +241,8 @@ async def _simulation_loop() -> None:
 async def lifespan(_app: FastAPI):
     task = asyncio.create_task(_simulation_loop())
     log.info(
-        "Simulator ready — tick=%.1fs, base_pace=%.1fs, max_laps=%d",
-        TICK_INTERVAL, BASE_LAP_TIME, MAX_LAPS,
+        "Simulator ready — tick=%.1fs, lap_range=%.0f–%.0fs, noise=±%.0fs, max_laps=%d",
+        TICK_INTERVAL, LAP_MIN, LAP_MAX, LAP_NOISE, MAX_LAPS,
     )
     yield
     task.cancel()

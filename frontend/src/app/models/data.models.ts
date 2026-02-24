@@ -50,6 +50,8 @@ export interface ProcessedRace {
   lapsRemaining?: number;
   /** True when exactly 1 lap remains */
   isFinalLap?: boolean;
+  /** 1-based finishing rank among completed competitors (lapsRemaining === 0), or undefined */
+  finishedRank?: number;
 }
 
 export interface HeatGroup {

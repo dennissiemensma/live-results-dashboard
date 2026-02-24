@@ -233,11 +233,17 @@ export class DataService {
           return { heat, races };
         });
       } else {
-        // ── assign lapsRemaining / isFinalLap ──────────────────────────────
+        // ── assign lapsRemaining / isFinalLap / finishedRank ──────────────────────────────
         if (totalLaps) {
+          let finishRank = 1;
           for (const race of processedRaces) {
             race.lapsRemaining = Math.max(0, totalLaps - race.lapsCount);
             race.isFinalLap = race.lapsRemaining === 1;
+            if (race.lapsRemaining === 0) {
+              race.finishedRank = finishRank++;
+            } else {
+              race.finishedRank = undefined;
+            }
           }
         }
 
@@ -249,10 +255,11 @@ export class DataService {
           ? updatedThisTick[updatedThisTick.length - 1].id
           : null;
 
-        // ── build standings groups ─────────────────────────────────────────
+        // ── build standings groups (exclude finished competitors) ─────────
+        const racesForGroups = processedRaces.filter(r => r.finishedRank == null);
         const groups: StandingsGroup[] = [];
         let currentGroup: StandingsGroup | null = null;
-        for (const race of processedRaces) {
+        for (const race of racesForGroups) {
           if (!currentGroup) {
             currentGroup = { laps: race.lapsCount, races: [race], groupNumber: 1 };
             groups.push(currentGroup);

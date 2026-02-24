@@ -4,34 +4,32 @@
   min-height: 3rem;
 }
 // ===== ANIMATIONS =====
-@keyframes flashGreen {
-  0%   { background-color: #c3e6cb; }
-  85%  { background-color: #c3e6cb; }
+@keyframes flashYellow {
+  0%   { background-color: #fff3cd; }
+  85%  { background-color: #fff3cd; }
   100% { background-color: transparent; }
 }
 .flash-update {
-  animation: flashGreen 8s ease-in-out forwards;
+  animation: flashYellow 8s ease-in-out forwards;
 }
-// Verbose position-change animations: physically slide the row in from above/below
+// Verbose position-change animations: physically slide the row — no color, animation only
 @keyframes slideInFromAbove {
-  0%   { transform: translateY(-100%); background-color: #cce5ff; z-index: 10; }
-  20%  { transform: translateY(0);     background-color: #cce5ff; }
-  88%  { transform: translateY(0);     background-color: #cce5ff; }
-  100% { transform: translateY(0);     background-color: transparent; }
+  0%   { transform: translateY(-100%); opacity: 0.4; }
+  25%  { transform: translateY(0);     opacity: 1;   }
+  100% { transform: translateY(0);     opacity: 1;   }
 }
 @keyframes slideInFromBelow {
-  0%   { transform: translateY(100%);  background-color: #fff3cd; z-index: 10; }
-  20%  { transform: translateY(0);     background-color: #fff3cd; }
-  88%  { transform: translateY(0);     background-color: #fff3cd; }
-  100% { transform: translateY(0);     background-color: transparent; }
+  0%   { transform: translateY(100%);  opacity: 0.4; }
+  25%  { transform: translateY(0);     opacity: 1;   }
+  100% { transform: translateY(0);     opacity: 1;   }
 }
 .pos-up {
   position: relative;
-  animation: slideInFromAbove 3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: slideInFromAbove 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 .pos-down {
   position: relative;
-  animation: slideInFromBelow 3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: slideInFromBelow 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 @keyframes glowRed {
   0%   { box-shadow: 0 0 0 0   rgba(220,53,69,0.7); }
@@ -98,6 +96,20 @@
   opacity: 0.6;
   margin-left: 0.1em;
 }
+// Raised ordinal suffix in finished rank badge
+.rank-sup {
+  font-size: 0.65em;
+  vertical-align: super;
+  line-height: 0;
+}
+// Ordinal rank in front of each standings row
+.rank-label {
+  font-size: 0.78em;
+  min-width: 2.2em;
+  text-align: right;
+  flex-shrink: 0;
+  color: #adb5bd;
+}
 // ===== TIME STYLING =====
 .race-time {
   font-variant-numeric: tabular-nums;
@@ -116,12 +128,20 @@
 }
 
 // ===== FINISHING LINE =====
+.finishing-container {
+  position: relative;
+}
 .finishing-line {
-  margin: 0.25rem 0;
-  color: #6c757d;
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin: 0;
+  pointer-events: none;
+  transition: top 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateY(-50%);
 }
 .finishing-line-bar {
-  height: 1px;
+  height: 2px;
   background: repeating-linear-gradient(
     90deg,
     #000 0px, #000 8px,
