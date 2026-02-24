@@ -81,6 +81,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
   errors$: Observable<string[]>;
   status$: Observable<import('../../services/data.service').BackendStatus>;
   secondsSinceUpdate$: Observable<number>;
+  displayedGroups$: Observable<Map<string, StandingsGroup[]>>;
 
   initialLiveId: string | null = null;
   pulseActive = false;
@@ -93,6 +94,11 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.selectedRaceId = this.selectedRaceId === id ? null : id;
   }
 
+  onThresholdChange(event: Event): void {
+    const val = parseFloat((event.target as HTMLInputElement).value);
+    if (!isNaN(val)) this.dataService.setGroupThreshold(val);
+  }
+
   private pulseTimeout: ReturnType<typeof setTimeout> | null = null;
   private dataSub: Subscription | null = null;
   private distSub: Subscription | null = null;
@@ -103,6 +109,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.status$ = this.dataService.status$;
     this.eventName$ = this.dataService.eventName$;
     this.errors$ = this.dataService.errors$;
+    this.displayedGroups$ = this.dataService.displayedGroups$;
 
     this.sortedDistances$ = this.dataService.processedData$.pipe(
       map((distances) => {
@@ -176,7 +183,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   isRecentUpdate(timestamp: number | undefined): boolean {
     if (!timestamp) return false;
-    return Date.now() - timestamp < 3000;
+    return Date.now() - timestamp < 1000;
   }
 
   padStartNumber(n: string): string {

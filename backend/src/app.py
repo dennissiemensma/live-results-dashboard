@@ -75,12 +75,6 @@ def _format_time(t: str) -> str:
     return ":".join(result)
 
 
-def _time_diff(a: str, b: str) -> float:
-    if not a or not b:
-        return 9999.0
-    return abs(_parse_seconds(a) - _parse_seconds(b))
-
-
 # ── data processing ───────────────────────────────────────────────────────────
 
 def _process(raw: dict) -> dict:
@@ -145,11 +139,9 @@ def _process(raw: dict) -> dict:
                 "formatted_total_time": formatted_total_time,
                 "position": 0,
                 "position_change": None,
-                "gap_to_above": None,
                 "laps_remaining": None,
                 "is_final_lap": False,
                 "finished_rank": None,
-                "group_number": None,
             })
 
         # sort: laps desc, time asc
@@ -159,7 +151,6 @@ def _process(raw: dict) -> dict:
 
         # mass-start specific
         any_finished = False
-        standings_groups: list[dict] = []
 
         # finishing line sits below the last competitor that has a total time
         with_time = [r for r in processed if r["total_time"]]
@@ -174,53 +165,6 @@ def _process(raw: dict) -> dict:
                     r["finished_rank"] = finish_rank
                     finish_rank += 1
                     any_finished = True
-
-            # standings groups (unfinished only, must have a total time)
-            unfinished = [r for r in processed if r["finished_rank"] is None and r["total_time"]]
-            groups: list[dict] = []
-            cur: dict | None = None
-            for r in unfinished:
-                if cur is None:
-                    cur = {"laps": r["laps_count"], "races": [r]}
-                    groups.append(cur)
-                elif r["laps_count"] == cur["laps"] and _time_diff(cur["races"][-1]["total_time"], r["total_time"]) <= 2.0:
-                    cur["races"].append(r)
-                else:
-                    cur = {"laps": r["laps_count"], "races": [r]}
-                    groups.append(cur)
-
-            leader_time = groups[0]["races"][0]["total_time"] if groups and groups[0]["races"] else None
-
-            for gi, group in enumerate(groups):
-                gnum = gi + 1
-                for ri, r in enumerate(group["races"]):
-                    r["group_number"] = gnum
-                    if ri > 0:
-                        diff = _time_diff(group["races"][ri - 1]["total_time"], r["total_time"])
-                        r["gap_to_above"] = f"+{diff:.3f}s"
-
-                first = group["races"][0]
-                gap_to_ahead: str | None = None
-                behind_leader: str | None = None
-                if gi > 0:
-                    prev_last = groups[gi - 1]["races"][-1]
-                    if prev_last["total_time"] and first["total_time"]:
-                        gap_to_ahead = f"+{_time_diff(prev_last['total_time'], first['total_time']):.3f}s"
-                    if leader_time and first["total_time"]:
-                        behind_leader = f"+{_time_diff(leader_time, first['total_time']):.3f}s"
-
-                standings_groups.append({
-                    "group_number": gnum,
-                    "laps": group["laps"],
-                    "leader_time": first["formatted_total_time"] if first["total_time"] else None,
-                    "gap_to_group_ahead": gap_to_ahead,
-                    "time_behind_leader": behind_leader,
-                    "is_last_group": False,
-                    "race_ids": [r["id"] for r in group["races"]],
-                })
-
-            if standings_groups:
-                standings_groups[-1]["is_last_group"] = True
 
         # non-mass heat groups
         heat_groups: list[dict] = []
@@ -240,7 +184,6 @@ def _process(raw: dict) -> dict:
             "total_laps": total_laps,
             "any_finished": any_finished,
             "finishing_line_after": finishing_line_after,
-            "standings_groups": standings_groups,
             "heat_groups": heat_groups,
         }
         competitors_out[dist_id] = {r["id"]: r for r in processed}

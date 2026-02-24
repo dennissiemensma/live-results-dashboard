@@ -1,16 +1,35 @@
+// Override CoreUI's overflow:hidden on accordion-item host so body scales to fit content
+:host ::ng-deep c-accordion-item {
+  overflow: visible !important;
+}
+// Expanded (open) accordion button: brand info color
+:host ::ng-deep .accordion-button:not(.collapsed) {
+  background-color: var(--cui-info, #39f) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+:host ::ng-deep .accordion-button:not(.collapsed)::after {
+  filter: brightness(0) invert(1);
+}
 // ===== TOP BAR =====
 .topbar {
   background-color: #000;
   min-height: 3rem;
 }
+.threshold-input {
+  width: 4.5rem;
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.25);
+  color: #fff;
+  &:focus { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.5); color: #fff; box-shadow: none; }
+}
 // ===== ANIMATIONS =====
 @keyframes flashYellow {
   0%   { background-color: #fff3cd; }
-  85%  { background-color: #fff3cd; }
   100% { background-color: transparent; }
 }
 .flash-update {
-  animation: flashYellow 3s ease-in-out forwards;
+  animation: flashYellow 1s ease-in-out forwards;
 }
 // Verbose position-change animations: physically slide the row — no color, animation only
 @keyframes slideInFromAbove {
@@ -159,7 +178,7 @@
 }
 .finishing-line-bar {
   height: 3px;
-  background: #000;
+  background: #fd7e14;
   flex-shrink: 0;
 }
 .finishing-line-label {
@@ -167,7 +186,22 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   white-space: nowrap;
-  color: #6c757d;
+  color: #fd7e14;
+  font-weight: 600;
+}
+
+// ===== GROUP SEPARATOR LINE =====
+.group-line-bar {
+  height: 1px;
+  background: #ced4da;
+  flex-shrink: 0;
+}
+.group-line-label {
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  color: #adb5bd;
 }
 
 // ===== HORIZONTAL GROUPS STRIP =====

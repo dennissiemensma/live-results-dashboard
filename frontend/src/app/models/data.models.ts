@@ -11,19 +11,7 @@ export interface DistanceMeta {
   total_laps: number | null;
   any_finished: boolean;
   finishing_line_after: string | null;
-  standings_groups: StandingsGroupMeta[];
   heat_groups: HeatGroupMeta[];
-}
-
-/** One group entry inside distance_meta.standings_groups */
-export interface StandingsGroupMeta {
-  group_number: number;
-  laps: number;
-  leader_time: string | null;
-  gap_to_group_ahead: string | null;
-  time_behind_leader: string | null;
-  is_last_group: boolean;
-  race_ids: string[];
 }
 
 /** One heat entry inside distance_meta.heat_groups */
@@ -45,13 +33,15 @@ export interface CompetitorUpdate {
   formatted_total_time: string;
   position: number;
   position_change: 'up' | 'down' | null;
-  gap_to_above: string | null;
   laps_remaining: number | null;
   is_final_lap: boolean;
   finished_rank: number | null;
-  group_number: number | null;
   /** Set by frontend on receive for flash-update animation */
   lastUpdated?: number;
+  /** Computed by frontend grouping logic */
+  group_number?: number | null;
+  /** Computed by frontend grouping logic */
+  gap_to_above?: string | null;
 }
 
 // ── Frontend view state ───────────────────────────────────────────────────────
@@ -67,13 +57,14 @@ export interface ProcessedDistance {
   totalLaps: number | null;
   anyFinished: boolean;
   finishingLineAfter: string | null;
-  /** Ordered list of competitor ids (sorted by backend: laps desc, time asc) */
+  /** Ordered list of competitors (sorted by backend: laps desc, time asc) */
   processedRaces: CompetitorUpdate[];
+  /** Computed by frontend from processedRaces + group threshold setting */
   standingsGroups: StandingsGroup[];
   heatGroups: HeatGroup[];
 }
 
-/** Resolved standings group for rendering (races populated from competitor map) */
+/** Resolved standings group for rendering (computed by frontend) */
 export interface StandingsGroup {
   groupNumber: number;
   laps: number;

@@ -20,8 +20,20 @@
         Last change received: {{ secondsSinceUpdate$ | async }}s ago
       }
     </span>
-    <button cButton color="light" variant="outline" size="sm" class="ms-auto" (click)="dataService.resetDashboard()">
-      Reset
+    <div class="d-flex align-items-center gap-1 ms-auto">
+      <label class="small text-white-50 text-nowrap mb-0" for="groupThresholdInput">Group gap</label>
+      <input
+        id="groupThresholdInput"
+        type="number"
+        min="0" step="0.5"
+        class="form-control form-control-sm threshold-input"
+        [value]="dataService.groupThreshold"
+        (change)="onThresholdChange($event)"
+      />
+      <span class="small text-white-50">s</span>
+    </div>
+    <button cButton color="light" variant="outline" size="sm" (click)="dataService.resetDashboard()">
+      Clear all data
     </button>
   </header>
   <!-- ===== ERRORS ===== -->
@@ -56,9 +68,11 @@
             </ng-template>
             <ng-template cTemplateId="accordionBody">
               <!-- ===== MASS-START TOP STRIP ===== -->
-              @if (distance.isMassStart && distance.standingsGroups.length) {
+              @if (distance.isMassStart) {
+                @let dGroups = (displayedGroups$ | async)?.get(distance.id) ?? [];
+                @if (dGroups.length) {
                 <div class="groups-strip d-flex flex-row-reverse gap-2 mb-3 pb-1">
-                  @for (group of distance.standingsGroups; track group.groupNumber; let firstGroup = $first) {
+                  @for (group of dGroups; track group.groupNumber; let firstGroup = $first) {
                     <div class="group-strip-card flex-shrink-0 {{ groupCardClass($index) }}"
                          [@groupCard]="group.isLastGroup ? 'last' : 'normal'">
                       <c-card class="h-100">
@@ -106,7 +120,8 @@
                     </div>
                   }
                 </div>
-              }
+                } <!-- end @if dGroups.length -->
+              } <!-- end @if distance.isMassStart -->
               <c-row>
                 <!-- NON-MASS-START: full width, grouped by heat -->
                 @if (!distance.isMassStart) {
@@ -159,9 +174,9 @@
                         <!-- Group finishing line above each group's first member -->
                         @if (groupForRace(distance, race.id); as grp) {
                           <div class="group-finishing-line d-flex align-items-center gap-2">
-                            <div class="finishing-line-bar flex-grow-1"></div>
-                            <span class="finishing-line-label">Group {{ grp.groupNumber }}</span>
-                            <div class="finishing-line-bar flex-grow-1"></div>
+                            <div class="group-line-bar flex-grow-1"></div>
+                            <span class="group-line-label">Group {{ grp.groupNumber }}</span>
+                            <div class="group-line-bar flex-grow-1"></div>
                           </div>
                         } @else if (raceIdx > 0 && isFirstInNewGroup(distance, raceIdx)) {
                           <div class="standings-group-gap"></div>
