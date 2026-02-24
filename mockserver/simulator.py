@@ -50,6 +50,7 @@ LAP_MIN = 10.0          # minimum lap time (seconds)
 LAP_MAX = 30.0          # maximum lap time (seconds)
 LAP_NOISE = 1.0         # ± per-lap random noise on top of personal pace
 MAX_LAPS = 20           # total race laps (excl. warmup lap)
+MAX_COMPETITORS = 6     # TEMPORARY: limit field size for debugging (set to None to use all)
 
 # ── load base data ────────────────────────────────────────────────────────────
 _base_path = Path(__file__).parent / "data" / "example.json"
@@ -93,11 +94,13 @@ class CompetitorSim:
     next_lap_at: float            # wall-clock time when next lap completes
     elapsed_race_time: float      # cumulative race time in seconds
     laps_done: int                # laps completed (excl. warmup)
+    last_committed_time: float    # last elapsed_race_time written to state (guards against retroactive times)
 
 
 _sims: dict[str, CompetitorSim] = {}   # race_id → CompetitorSim
 _state: dict = {}
 _race_finished = False
+_race_start: float = 0.0  # wall-clock monotonic time when the race begins (shared origin for all total times)
 
 
 def _assign_fake_names(state: dict) -> None:
@@ -120,7 +123,7 @@ def _init_simulation() -> None:
     lap (lap 0, duration WARMUP_MIN–WARMUP_MAX s) so the backend sees every
     competitor at lap 0 on first fetch.  The simulation then ticks from there.
     """
-    global _state, _sims, _race_finished
+    global _state, _sims, _race_finished, _race_start
 
     _state = copy.deepcopy(_base_data)
     _assign_fake_names(_state)
@@ -137,6 +140,11 @@ def _init_simulation() -> None:
     now = time.monotonic()
     races = dist["races"]
 
+    # Restrict field size when MAX_COMPETITORS is set (temporary debugging aid)
+    if MAX_COMPETITORS is not None:
+        races = races[:MAX_COMPETITORS]
+        dist["races"] = races
+
     PACK_WINDOW = 5.0    # max spread within the main pack (seconds/lap)
     LONER_GAP   = 15.0   # how much slower the loner is vs the slowest pack member
 
@@ -150,15 +158,18 @@ def _init_simulation() -> None:
         pace = pack_base + random.uniform(0.0, PACK_WINDOW)
         jitter = random.uniform(0.0, pace * 0.25)
 
-        # Clear pre-existing laps; seed single warmup lap (lap 0)
+        # Clear pre-existing laps; seed single warmup lap (lap 0).
+        # Warmup time is the lap split; total time for warmup lap = warmup_secs
+        # (before race clock starts — race clock origin is _race_start = now).
         race["laps"] = [{"time": _fmt(warmup_secs), "lapTime": _fmt(warmup_secs)}]
 
         _sims[rid] = CompetitorSim(
             race_id=rid,
             personal_pace=pace,
             next_lap_at=now + warmup_secs + pace + jitter,
-            elapsed_race_time=warmup_secs,
+            elapsed_race_time=0.0,
             laps_done=0,
+            last_committed_time=0.0,
         )
 
     # Loner: fixed slow pace, no jitter
@@ -169,9 +180,13 @@ def _init_simulation() -> None:
         race_id=loner_race["id"],
         personal_pace=loner_pace,
         next_lap_at=now + loner_warmup + loner_pace,
-        elapsed_race_time=loner_warmup,
+        elapsed_race_time=0.0,
         laps_done=0,
+        last_committed_time=0.0,
     )
+
+    # Race clock origin: all competitors' total times are relative to this moment.
+    _race_start = now
 
     log.info(
         "Simulation initialised: %d competitors — pack base=%.1fs window=%.1fs, loner=%.1fs/lap",
@@ -210,11 +225,30 @@ def _tick() -> None:
         else:
             noise = random.uniform(-LAP_NOISE, LAP_NOISE)
             lap_secs = max(LAP_MIN - LAP_NOISE, min(LAP_MAX + LAP_NOISE, sim.personal_pace + noise))
-        sim.elapsed_race_time += lap_secs
+
+        # Total race time = time elapsed since the shared race start at the due crossing time.
+        # Using the due time (sim.next_lap_at) rather than now or an accumulated sum ensures
+        # that all competitors' total times are on the same reference clock and strictly
+        # reflect when they crossed the line relative to each other.
+        total_race_time = sim.next_lap_at - _race_start
+        sim.elapsed_race_time = total_race_time
         sim.laps_done += 1
 
+        # Guard: never emit a total time that is ≤ the last committed time.
+        if total_race_time <= sim.last_committed_time:
+            log.warning(
+                "Skipping retroactive time for #%s: new=%.3fs ≤ last=%.3fs",
+                race["competitor"]["startNumber"],
+                total_race_time,
+                sim.last_committed_time,
+            )
+            sim.next_lap_at = sim.next_lap_at + (sim.personal_pace if is_loner else lap_secs)
+            continue
+
+        sim.last_committed_time = total_race_time
+
         race["laps"].append({
-            "time": _fmt(sim.elapsed_race_time),
+            "time": _fmt(total_race_time),
             "lapTime": _fmt(lap_secs),
         })
 
@@ -222,24 +256,17 @@ def _tick() -> None:
         start_num = race["competitor"]["startNumber"]
         log.info(
             "Mocked lap: #%s %s — lap %d/%d  lap=%.3fs  total=%s",
-            start_num, name, sim.laps_done, MAX_LAPS, lap_secs, _fmt(sim.elapsed_race_time),
+            start_num, name, sim.laps_done, MAX_LAPS, lap_secs, _fmt(total_race_time),
         )
 
-        # Schedule next lap (loner: fixed interval; pack: fresh noise)
+        # Schedule next lap from the due time to preserve relative timing.
         if is_loner:
-            sim.next_lap_at = now + sim.personal_pace
+            sim.next_lap_at = sim.next_lap_at + sim.personal_pace
         else:
             next_noise = random.uniform(-LAP_NOISE, LAP_NOISE)
             next_lap = max(LAP_MIN - LAP_NOISE, min(LAP_MAX + LAP_NOISE, sim.personal_pace + next_noise))
-            sim.next_lap_at = now + next_lap
+            sim.next_lap_at = sim.next_lap_at + next_lap
         any_updated = True
-
-    if any_updated:
-        finished_count = sum(1 for s in _sims.values() if s.laps_done >= MAX_LAPS)
-        log.info(
-            "Standings: %d/%d competitors finished all %d laps",
-            finished_count, len(_sims), MAX_LAPS,
-        )
 
     # Check if all competitors have finished
     if all(s.laps_done >= MAX_LAPS for s in _sims.values()):

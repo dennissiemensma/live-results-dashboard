@@ -34,6 +34,7 @@ export interface CompetitorUpdate {
   position: number;
   position_change: 'up' | 'down' | null;
   laps_remaining: number | null;
+  /** Computed by frontend: laps_remaining === 1 */
   is_final_lap: boolean;
   finished_rank: number | null;
   /** Set by frontend on receive for flash-update animation */

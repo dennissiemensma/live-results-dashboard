@@ -86,13 +86,10 @@
                          [@groupCard]="group.isLastGroup ? 'last' : 'normal'">
                       <c-card class="h-100">
                         <c-card-header class="py-1 px-2 d-flex justify-content-between align-items-center gap-2">
-                          <div class="d-flex align-items-center gap-1 flex-wrap">
-                            <small class="fw-bold text-nowrap">{{ groupDisplayName(group, firstGroup, distance.anyFinished) }}</small>
-                            @if (firstGroup && !distance.anyFinished) {
-                              <c-badge color="success" class="text-nowrap" style="font-size:0.65em">Leader</c-badge>
-                            }
-                          </div>
-                          @if (!firstGroup && group.gapToGroupAhead) {
+                          <small class="fw-bold text-nowrap">{{ groupDisplayName(group, firstGroup, distance.anyFinished) }}</small>
+                          @if (firstGroup && !distance.anyFinished) {
+                            <c-badge color="success" class="text-nowrap" style="font-size:0.65em">Leader</c-badge>
+                          } @else if (!firstGroup && group.gapToGroupAhead) {
                             <span class="gap-badge text-nowrap">{{ group.gapToGroupAhead }}</span>
                           }
                         </c-card-header>

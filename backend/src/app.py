@@ -140,7 +140,6 @@ def _process(raw: dict) -> dict:
                 "position": 0,
                 "position_change": None,
                 "laps_remaining": None,
-                "is_final_lap": False,
                 "finished_rank": None,
             })
 
@@ -160,7 +159,6 @@ def _process(raw: dict) -> dict:
             finish_rank = 1
             for r in processed:
                 r["laps_remaining"] = max(0, total_laps - r["laps_count"])
-                r["is_final_lap"] = r["laps_remaining"] == 1
                 if r["laps_remaining"] == 0:
                     r["finished_rank"] = finish_rank
                     finish_rank += 1
@@ -207,8 +205,12 @@ def _diff(prev: dict | None, curr: dict) -> tuple[list[dict], list[dict]]:
             dist_updates.append(dist)
         prev_dist_comps = prev_comps.get(dist_id, {})
         for race_id, comp in curr["competitors"].get(dist_id, {}).items():
-            if prev_dist_comps.get(race_id) != comp:
-                comp_updates.append(comp)
+            if prev_dist_comps.get(race_id) == comp:
+                continue  # unchanged
+            is_new = race_id not in prev_dist_comps
+            if not comp.get("total_time") and not is_new:
+                continue  # suppress no-time updates after initial appearance
+            comp_updates.append(comp)
 
     return dist_updates, comp_updates
 

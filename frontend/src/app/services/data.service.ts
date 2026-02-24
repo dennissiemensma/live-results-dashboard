@@ -233,6 +233,10 @@ export class DataService {
         dist.processedRaces = [...dist.processedRaces, comp];
       }
 
+      // Derive is_final_lap in the frontend
+      const target = distComps.get(comp.id)!;
+      target.is_final_lap = target.laps_remaining === 1;
+
       if (dist.isMassStart) {
         // If this competitor has a time that is new or changed, they just crossed
         // the lap line — enqueue them so the finishing line steps through in order.
