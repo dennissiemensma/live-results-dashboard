@@ -11,6 +11,9 @@ services:
     environment:
       - DATA_SOURCE_URL=http://mockserver:8080/api/data
       - DATA_SOURCE_INTERVAL=1
+    depends_on:
+      mockserver:
+        condition: service_healthy
     networks:
       - dashboard-net
 
@@ -47,9 +50,14 @@ services:
     build:
       context: ./mockserver
       dockerfile: Containerfile
-    command: --root-dir /home/wiremock --verbose
     volumes:
-      - ./mockserver:/home/wiremock
+      - ./mockserver:/app
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/data')"]
+      interval: 3s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - dashboard-net
 

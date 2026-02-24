@@ -103,5 +103,14 @@ Specs:
 
 ## Mockserver
 - [x] For development without real data URL
-- [x] Do not alter or remove `example.json`
-- [x] Wiremock
+- [x] Do not alter or remove `example.json` (you may relocate it)
+- [x] Python 3.14 + FastAPI, mirrors src into container
+- [x] Basic code formatting tools (ruff)
+- Dynamically mock the `example.json` data to change every few seconds
+  - [x] Only applies to mass start distance that is live. Simulate competitors doing laps and changing positions (slightly)
+  - [x] Each competitor has a stable personal pace (drawn once at race start) with small per-lap noise, so rankings change gradually and realistically
+  - [x] Competitors complete laps independently — not all at the same tick — based on their pace
+  - [x] Faster competitors naturally lap slower ones over time, producing different lap counts between competitors
+  - [x] When all competitors have finished (reached MAX_LAPS), mark the distance `isLive: false` and pause, then restart the whole simulation after a few seconds
+  - [x] Expose a `POST /api/reset` endpoint to restart the simulation immediately
+  - [x] Output to logs when a change is mocked

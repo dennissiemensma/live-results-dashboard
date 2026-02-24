@@ -1,0 +1,244 @@
+"""
+Dynamic mock server for live-results-dashboard.
+Serves GET /api/data — returns example.json with the live mass-start distance
+mutated in real-time to simulate a realistic inline-skating mass-start race.
+
+Simulation model
+────────────────
+• Each competitor is assigned a stable personal pace (seconds/lap) once at
+  race start, drawn from a normal distribution around BASE_LAP_TIME.
+• A small per-lap noise term is added on top so lap times fluctuate slightly.
+• Competitors are ticked independently: a competitor completes their next lap
+  once wall-clock time ≥ their scheduled next-lap timestamp.
+• This means faster skaters naturally accumulate more laps than slower ones,
+  producing realistic lap-count differences and position swaps.
+• Once every competitor has completed MAX_LAPS the distance is marked
+  isLive=False. After RESTART_DELAY seconds the simulation resets and a new
+  race begins (isLive flips back to True).
+
+Does NOT modify example.json on disk.
+"""
+
+import asyncio
+import copy
+import json
+import logging
+import random
+import time
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger(__name__)
+
+# ── config ────────────────────────────────────────────────────────────────────
+TICK_INTERVAL = 0.5     # seconds between simulation ticks (fine-grained)
+BASE_LAP_TIME = 38.0    # seconds — mean lap time across the field
+PACE_STDDEV = 3.5       # std-dev for each competitor's personal pace
+LAP_NOISE = 0.8         # ± per-lap random noise on top of personal pace
+MAX_LAPS = 20           # total race laps (excl. warmup lap)
+RESTART_DELAY = 8       # seconds to wait after race ends before restarting
+
+# ── load base data ────────────────────────────────────────────────────────────
+_base_path = Path(__file__).parent / "data" / "example.json"
+_base_data: dict = json.loads(_base_path.read_text())
+
+
+def _find_live_mass_start(data: dict) -> dict | None:
+    """Return the live mass-start distance dict, or None."""
+    for dist in data.get("distances", []):
+        if not dist.get("isLive"):
+            continue
+        races = dist.get("races", [])
+        if len(races) > 2 and len({r["heat"] for r in races}) == 1:
+            return dist
+    return None
+
+
+_base_dist = _find_live_mass_start(_base_data)
+_live_dist_id: str | None = _base_dist["id"] if _base_dist else None
+log.info("Live mass-start distance id: %s", _live_dist_id)
+
+
+# ── time helpers ──────────────────────────────────────────────────────────────
+
+def _parse_time(t: str) -> float:
+    """Parse HH:MM:SS.fffffff → total seconds."""
+    h, m, s = t.split(":")
+    return int(h) * 3600 + int(m) * 60 + float(s)
+
+
+def _fmt(total_seconds: float) -> str:
+    """Format seconds → HH:MM:SS.7f matching source-data format."""
+    total_seconds = max(0.0, total_seconds)
+    h = int(total_seconds // 3600)
+    rem = total_seconds - h * 3600
+    m = int(rem // 60)
+    s = rem - m * 60
+    return f"{h:02d}:{m:02d}:{s:010.7f}"
+
+
+# ── per-competitor simulation state ──────────────────────────────────────────
+
+@dataclass
+class CompetitorSim:
+    race_id: str
+    personal_pace: float          # target seconds/lap
+    next_lap_at: float            # wall-clock time when next lap completes
+    elapsed_race_time: float      # cumulative race time in seconds
+    laps_done: int                # laps completed (excl. warmup)
+
+
+_sims: dict[str, CompetitorSim] = {}   # race_id → CompetitorSim
+_state: dict = {}
+_race_finished = False
+_race_end_time: float = 0.0
+
+
+def _init_simulation() -> None:
+    """Build fresh _state and _sims from the base data."""
+    global _state, _sims, _race_finished, _race_end_time
+
+    _state = copy.deepcopy(_base_data)
+    _sims = {}
+    _race_finished = False
+    _race_end_time = 0.0
+
+    dist = _find_live_mass_start(_state)
+    if not dist:
+        log.warning("No live mass-start distance found — simulation idle")
+        return
+
+    # Ensure isLive is True at the start of a new race
+    dist["isLive"] = True
+
+    now = time.monotonic()
+    for race in dist["races"]:
+        rid = race["id"]
+        # Warm up lap is already in laps[0]; seed elapsed from its time
+        warmup_time = _parse_time(race["laps"][0]["time"]) if race["laps"] else 0.0
+
+        pace = max(20.0, random.gauss(BASE_LAP_TIME, PACE_STDDEV))
+        # Stagger first lap completion slightly so they don't all fire at once
+        jitter = random.uniform(0.0, pace * 0.25)
+        _sims[rid] = CompetitorSim(
+            race_id=rid,
+            personal_pace=pace,
+            next_lap_at=now + warmup_time + pace + jitter,
+            elapsed_race_time=warmup_time,
+            laps_done=len(race["laps"]) - 1,  # exclude warmup
+        )
+
+    log.info(
+        "Simulation initialised: %d competitors, pace range %.1f–%.1f s/lap",
+        len(_sims),
+        min(s.personal_pace for s in _sims.values()),
+        max(s.personal_pace for s in _sims.values()),
+    )
+
+
+def _tick() -> None:
+    """Advance the simulation by one tick — complete any due laps."""
+    global _race_finished, _race_end_time
+
+    if _race_finished:
+        return
+
+    dist = next((d for d in _state["distances"] if d["id"] == _live_dist_id), None)
+    if not dist:
+        return
+
+    now = time.monotonic()
+    any_updated = False
+
+    for race in dist["races"]:
+        rid = race["id"]
+        sim = _sims.get(rid)
+        if not sim or sim.laps_done >= MAX_LAPS:
+            continue
+        if now < sim.next_lap_at:
+            continue
+
+        # Competitor completes a lap
+        lap_secs = sim.personal_pace + random.uniform(-LAP_NOISE, LAP_NOISE)
+        lap_secs = max(20.0, lap_secs)
+        sim.elapsed_race_time += lap_secs
+        sim.laps_done += 1
+
+        race["laps"].append({
+            "time": _fmt(sim.elapsed_race_time),
+            "lapTime": _fmt(lap_secs),
+        })
+
+        name = race["competitor"]["name"]
+        start_num = race["competitor"]["startNumber"]
+        log.info(
+            "Mocked lap: #%s %s — lap %d/%d  lap=%.3fs  total=%s",
+            start_num, name, sim.laps_done, MAX_LAPS, lap_secs, _fmt(sim.elapsed_race_time),
+        )
+
+        # Schedule next lap
+        next_pace = sim.personal_pace + random.uniform(-LAP_NOISE, LAP_NOISE)
+        sim.next_lap_at = now + max(20.0, next_pace)
+        any_updated = True
+
+    if any_updated:
+        finished_count = sum(1 for s in _sims.values() if s.laps_done >= MAX_LAPS)
+        log.info(
+            "Standings: %d/%d competitors finished all %d laps",
+            finished_count, len(_sims), MAX_LAPS,
+        )
+
+    # Check if all competitors have finished
+    if all(s.laps_done >= MAX_LAPS for s in _sims.values()):
+        dist["isLive"] = False
+        _race_finished = True
+        _race_end_time = time.monotonic()
+        log.info("Race finished — restarting in %ds", RESTART_DELAY)
+
+
+# ── background simulation loop ────────────────────────────────────────────────
+
+async def _simulation_loop() -> None:
+    _init_simulation()
+    while True:
+        await asyncio.sleep(TICK_INTERVAL)
+
+        if _race_finished:
+            if time.monotonic() - _race_end_time >= RESTART_DELAY:
+                log.info("Restarting simulation")
+                _init_simulation()
+        else:
+            _tick()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    task = asyncio.create_task(_simulation_loop())
+    log.info(
+        "Simulator ready — tick=%.1fs, base_pace=%.1fs, max_laps=%d",
+        TICK_INTERVAL, BASE_LAP_TIME, MAX_LAPS,
+    )
+    yield
+    task.cancel()
+
+
+# ── FastAPI app ───────────────────────────────────────────────────────────────
+app = FastAPI(title="Live Results Mock Server", lifespan=lifespan)
+
+
+@app.get("/api/data")
+async def get_data():
+    return JSONResponse(content=_state)
+
+
+@app.post("/api/reset")
+async def reset():
+    """Restart the simulation immediately from the example.json baseline."""
+    _init_simulation()
+    log.info("Simulation manually reset")
+    return {"reset": True}

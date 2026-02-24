@@ -1,4 +1,9 @@
-FROM wiremock/wiremock:3.3.1
-COPY mappings /home/wiremock/mappings
-COPY __files /home/wiremock/__files
+FROM python:3.14-rc-slim
 
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# src is volume-mounted at runtime — only reload on .py changes, not __files
+CMD ["uvicorn", "simulator:app", "--host", "0.0.0.0", "--port", "8080", "--reload", "--reload-dir", "/app", "--reload-include", "*.py"]
