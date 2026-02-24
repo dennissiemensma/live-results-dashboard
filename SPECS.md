@@ -73,7 +73,7 @@ Each component:
 
 ##### Inside each accordion
 - [x] Mass start: top row of group cards; non-mass-start: group by heat in cards sorted by heat then time
-- [x] Group cards: first group titled **"Head of the race"** with a green **"Leader"** badge **right-aligned** in the card header while no one has finished; once anyone finishes the first group reverts to **"Group 1"** (badge also hidden); overflow/tail group titled **"Tail of the race"** (no extra badge); intermediate groups titled "Group X"; gap badge (`+Xs`) shown right-aligned in the card header for non-head groups; head group shows no gap; finished competitors are removed from group cards immediately; a gray semi-opaque count badge showing the number of competitors in the group is rendered immediately after the group name
+- [x] Group cards: first group titled **"Head of the race"** with a green **"Leader"** badge **right-aligned** in the card header while no one has finished; once anyone finishes the first group reverts to **"Group 1"** (badge also hidden); overflow/tail group titled **"Tail of the race"** (no extra badge); intermediate groups titled "Group X"; gap badge (`+Xs`) shown right-aligned in the card header for non-head groups; head group shows no gap; finished competitors are removed from group cards immediately
 - [x] Head group tagged "Head of the race" (title) with green "Leader" badge; both revert to "Group 1" / no badge after first finish
 - [x] Between groups: gap badge shown top-right in the card header; shows `+Xs` time diff when the group is on the same lap count as the leader (first group), or `+X lap(s)` when the group is at least one lap behind the leader — lap count is always compared against the first group, not the group immediately ahead
 - [x] Group strip shown immediately on initial load (no debounce delay on first render); subsequent updates still debounced by group threshold
@@ -87,14 +87,14 @@ Each component:
 - [x] Group cards: group leader right-side slot shows **"Final lap"** label (blue) when `is_final_lap` is true (frontend-computed), nothing otherwise; subsequent competitors show their gap to the **group leader**: time diff (`+Xs`) when both have a `total_time` and are on the same lap; lap diff (`+X lap(s)`) when the competitor is on a different lap count than the group leader or has no `total_time`
 - [x] Sort: laps descending, then total time ascending (by `position` field from backend, assigned after numeric sort)
 - [x] "Final lap" (blue) / "Finished" (green) badge; finished competitor rows are slightly opaque
-- [x] All competitors show their `formatted_total_time`; no separate diff badge for finishers
+- [x] All competitors show either their `gap_to_above` (time diff or lap diff) **or** their `formatted_total_time` — never both; group leaders and finished competitors show `formatted_total_time`; non-leader unfinished competitors show `gap_to_above` instead; rendered before the laps badge
 - [x] Rank prefix: "1ˢᵗ" style with raised superscript, light gray
-- [x] Laps badge: "X/total" with total in small gray; rendered after the time field
+- [x] Laps badge: "X/total" with total in small gray; rendered after the time/gap field; fixed min-width for "XX/XX" (5 chars + padding), centered, monospace — same sizing logic as `start_number` badge
 - [x] Time: decimals in small gray
 - [x] Animate row background to light yellow on update for 1s **only when the competitor received an actual backend update**; no highlight on restore or group recompute
 - [x] Animate position changes with a two-row swap animation: when two competitors exchange positions, both rows slide past each other simultaneously using a CSS translate transition, so the movement is visually symmetrical; row position is NOT updated until after the 1s flash-update highlight completes (deferred sort: 1s debounce after last update for the distance)
 - [x] Finishing line: rendered as an **inline DOM element** in the list flow, below the competitor currently at `finishingLineAfter`; styled as a solid 3px bright orange line with a small "Lap completed" label; moves naturally with the list as rows reorder; no absolute positioning or JS measurement; `finishingLineAfter` is always the id of the last competitor (in standings order) who has a `total_time` and is not yet finished (`finished_rank == null`); updated immediately on every competitor update with no queuing or artificial delay; the line moves smoothly as the standings list reorders naturally
-- [x] Group separator lines with group name; styled as a thin 1px gray line; small top margin above each group divider
+- [x] Group separator lines with group name; styled as a thin 1px gray line; small top margin above each group divider; a gray transparent count badge (competitor count) and an orange gap badge (`+Xs` / `+X lap(s)`, same value as the group card header gap) are rendered inline after the group name on the separator line; head group shows no gap badge
 - [x] Click to select competitor; reflected in both strip and standings; click again/elsewhere to deselect
 
 ## Mockserver

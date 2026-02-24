@@ -124,7 +124,16 @@
 }
 // ===== LAPS BADGE =====
 .laps-badge {
+  font-family: monospace !important;
   font-variant-numeric: tabular-nums;
+  min-width: calc(5ch + 0.7em); // "XX/XX" + padding
+  box-sizing: border-box;
+  padding-left: 0.35em !important;
+  padding-right: 0.35em !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 .laps-total {
   font-size: 0.78em;
@@ -209,6 +218,34 @@
   white-space: nowrap;
   color: #adb5bd;
 }
+// Gray transparent count badge on the separator line
+.group-sep-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65em;
+  font-family: monospace;
+  font-weight: 600;
+  min-width: 1.5em;
+  padding: 0.1em 0.4em;
+  border-radius: 99px;
+  background-color: rgba(108, 117, 125, 0.18);
+  color: #6c757d;
+  line-height: 1.4;
+}
+// Orange gap badge on the separator line (mirrors gap-badge but orange)
+.group-sep-gap-badge {
+  display: inline-block;
+  font-size: 0.65em;
+  font-family: monospace;
+  font-weight: 600;
+  padding: 0.1em 0.4em;
+  border-radius: 0.3em;
+  background-color: rgba(253, 126, 20, 0.15);
+  color: #fd7e14;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
 
 // ===== HORIZONTAL GROUPS STRIP =====
 .groups-strip {
@@ -231,20 +268,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-// Count badge showing number of competitors in a group
-.group-count-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.65em;
-  font-family: monospace;
-  font-weight: 600;
-  min-width: 1.5em;
-  padding: 0.1em 0.4em;
-  border-radius: 99px;
-  background-color: rgba(108, 117, 125, 0.25);
-  color: #6c757d;
-  line-height: 1.4;
+// Gap shown on standings rows (mirrors group card intra-group gap style)
+.standings-gap-label {
+  font-size: 0.78em;
+  font-style: italic;
+  color: var(--cui-secondary-color, #6c757d);
+  white-space: nowrap;
 }
 // Gap badge between groups — warning yellow (reverted)
 .gap-badge {
