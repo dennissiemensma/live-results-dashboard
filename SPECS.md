@@ -91,7 +91,7 @@ Each component:
 - [x] Time: decimals in small gray
 - [x] Animate row background to light yellow on update for 1s **only when the competitor received an actual backend update**; no highlight on restore or group recompute
 - [x] Animate position changes with row-swap animation; row position is NOT updated until after the 1s flash-update highlight completes (deferred sort: 1s debounce after last update for the distance)
-- [x] Finishing line: rendered as an **inline DOM element** in the list flow, below the last lap-completed competitor (`finishingLineAfter`); styled as a solid 3px bright orange line with a small "Lap completed" label; moves naturally with the list as rows reorder; no absolute positioning or JS measurement
+- [x] Finishing line: rendered as an **inline DOM element** in the list flow, below the competitor currently at `finishingLineAfter`; styled as a solid 3px bright orange line with a small "Lap completed" label; moves naturally with the list as rows reorder; no absolute positioning or JS measurement; each competitor whose `total_time` is new or changes is enqueued in arrival order; a 600ms step timer drains the queue one competitor at a time, moving `finishingLineAfter` to each in sequence so the line visibly sweeps through every crosser in the order they completed the lap
 - [x] Group separator lines with group name; styled as a thin 1px gray line; small top margin above each group divider
 - [x] Click to select competitor; reflected in both strip and standings; click again/elsewhere to deselect
 
