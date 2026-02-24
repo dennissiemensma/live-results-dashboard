@@ -55,8 +55,8 @@
               </div>
             </ng-template>
             <ng-template cTemplateId="accordionBody">
-              <!-- ===== MASS-START TOP STRIP: head of race right, groups left ===== -->
-              @if (distance.isMassStart && distance.standingsGroups?.length) {
+              <!-- ===== MASS-START TOP STRIP ===== -->
+              @if (distance.isMassStart && distance.standingsGroups.length) {
                 <div class="groups-strip d-flex flex-row-reverse gap-2 mb-3 pb-1">
                   @for (group of distance.standingsGroups; track group.groupNumber; let firstGroup = $first) {
                     <div class="group-strip-card flex-shrink-0 {{ groupCardClass($index) }}"
@@ -82,20 +82,21 @@
                               <div
                                 class="race-item-group d-flex justify-content-between align-items-center rounded px-1 mb-1"
                                 [class.flash-update]="isRecentUpdate(race.lastUpdated)"
-                                [class.pos-up]="race.positionChange === 'up'"
-                                [class.pos-down]="race.positionChange === 'down'" [class.race-selected]="selectedRaceId === race.id"
+                                [class.pos-up]="race.position_change === 'up'"
+                                [class.pos-down]="race.position_change === 'down'"
+                                [class.race-selected]="selectedRaceId === race.id"
                                 (click)="selectRace(race.id)"
                               >
                                 <div class="d-flex align-items-center gap-1">
-                                  <c-badge class="start-num-badge badge-black" style="font-size:0.75em">{{ padStartNumber(race.startNumber) }}</c-badge>
-                                  <span class="small text-truncate strip-name">{{ race.competitorName }}</span>
+                                  <c-badge class="start-num-badge badge-black" style="font-size:0.75em">{{ padStartNumber(race.start_number) }}</c-badge>
+                                  <span class="small text-truncate strip-name">{{ race.name }}</span>
                                 </div>
                                 @if (firstRace) {
-                                  @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
-                                    <span class="race-time ms-1" style="font-size:0.8em;white-space:nowrap">{{ splitFormattedTime(race.formattedTotalTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formattedTotalTime)[1] }}</small></span>
+                                  @if (race.formatted_total_time && race.formatted_total_time !== 'No Time') {
+                                    <span class="race-time ms-1" style="font-size:0.8em;white-space:nowrap">{{ splitFormattedTime(race.formatted_total_time)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formatted_total_time)[1] }}</small></span>
                                   }
                                 } @else {
-                                  <span class="text-muted fst-italic ms-1" style="font-size:0.75em;white-space:nowrap">{{ race.gapToAbove }}</span>
+                                  <span class="text-muted fst-italic ms-1" style="font-size:0.75em;white-space:nowrap">{{ race.gap_to_above }}</span>
                                 }
                               </div>
                             }
@@ -119,8 +120,8 @@
                               <div
                                 class="race-item d-flex justify-content-between align-items-center p-2 mb-1 rounded"
                                 [class.flash-update]="isRecentUpdate(race.lastUpdated)"
-                                [class.pos-up]="race.positionChange === 'up'"
-                                [class.pos-down]="race.positionChange === 'down'"
+                                [class.pos-up]="race.position_change === 'up'"
+                                [class.pos-down]="race.position_change === 'down'"
                                 [class.race-selected]="selectedRaceId === race.id"
                                 (click)="selectRace(race.id)"
                               >
@@ -129,13 +130,13 @@
                                     class="start-num-badge"
                                     [style.background-color]="race.lane"
                                     [ngClass]="badgeTextClass(race.lane)"
-                                  >{{ padStartNumber(race.startNumber) }}</c-badge>
-                                  <span>{{ race.competitorName }}</span>
+                                  >{{ padStartNumber(race.start_number) }}</c-badge>
+                                  <span>{{ race.name }}</span>
                                 </div>
                                 <div class="d-flex align-items-center gap-2">
-                                  <c-badge color="secondary">{{ race.lapsCount }} lap{{ race.lapsCount !== 1 ? 's' : '' }}</c-badge>
-                                  @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
-                                    <span class="race-time">{{ splitFormattedTime(race.formattedTotalTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formattedTotalTime)[1] }}</small></span>
+                                  <c-badge color="secondary">{{ race.laps_count }} lap{{ race.laps_count !== 1 ? 's' : '' }}</c-badge>
+                                  @if (race.formatted_total_time && race.formatted_total_time !== 'No Time') {
+                                    <span class="race-time">{{ splitFormattedTime(race.formatted_total_time)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formatted_total_time)[1] }}</small></span>
                                   } @else {
                                     <span class="text-muted small">No Time</span>
                                   }
@@ -148,19 +149,19 @@
                     }
                   </c-col>
                 }
-                <!-- MASS-START: full-width standings, no right column -->
+                <!-- MASS-START: full-width standings -->
                 @if (distance.isMassStart) {
                   <c-col [xs]="12">
                     <div class="finishing-container"
                          [attr.data-finishing-container]="distance.id"
                          [@raceList]="raceListKey(distance.processedRaces)">
                       @for (race of distance.processedRaces; track race.id; let raceIdx = $index) {
-                        <!-- Group divider above each group's first member -->
+                        <!-- Group finishing line above each group's first member -->
                         @if (groupForRace(distance, race.id); as grp) {
-                          <div class="standings-group-divider d-flex align-items-center gap-2" [class.mt-2]="raceIdx > 0">
-                            <div class="standings-group-divider-bar flex-grow-1"></div>
-                            <span class="standings-group-divider-label">Group {{ grp.groupNumber }}</span>
-                            <div class="standings-group-divider-bar flex-grow-1"></div>
+                          <div class="group-finishing-line d-flex align-items-center gap-2" [class.mt-2]="raceIdx > 0">
+                            <div class="finishing-line-bar flex-grow-1"></div>
+                            <span class="finishing-line-label">Group {{ grp.groupNumber }}</span>
+                            <div class="finishing-line-bar flex-grow-1"></div>
                           </div>
                         } @else if (raceIdx > 0 && isFirstInNewGroup(distance, raceIdx)) {
                           <div class="standings-group-gap"></div>
@@ -169,36 +170,36 @@
                           class="race-item d-flex justify-content-between align-items-center p-2 mb-1 rounded"
                           [attr.data-race-id]="race.id"
                           [class.flash-update]="isRecentUpdate(race.lastUpdated)"
-                          [class.pos-up]="race.positionChange === 'up'"
-                          [class.pos-down]="race.positionChange === 'down'"
+                          [class.pos-up]="race.position_change === 'up'"
+                          [class.pos-down]="race.position_change === 'down'"
                           [class.race-selected]="selectedRaceId === race.id"
                           (click)="selectRace(race.id)"
                         >
                           <div class="d-flex align-items-center gap-2">
                             <span class="rank-label text-muted">{{ ordinalSuffix(raceIdx + 1)[0] }}<sup class="rank-sup">{{ ordinalSuffix(raceIdx + 1)[1] }}</sup></span>
-                            <c-badge class="start-num-badge badge-black">{{ padStartNumber(race.startNumber) }}</c-badge>
-                            <span>{{ race.competitorName }}</span>
-                            @if (race.finishedRank != null) {
+                            <c-badge class="start-num-badge badge-black">{{ padStartNumber(race.start_number) }}</c-badge>
+                            <span>{{ race.name }}</span>
+                            @if (race.finished_rank != null) {
                               <c-badge color="secondary" style="font-size:0.7em">Finished</c-badge>
-                            } @else if (race.isFinalLap) {
+                            } @else if (race.is_final_lap) {
                               <c-badge color="success" style="font-size:0.7em">Final lap</c-badge>
                             }
                           </div>
                           <div class="d-flex align-items-center gap-2">
                             @if (distance.totalLaps) {
-                              <c-badge color="secondary" class="laps-badge">{{ race.lapsCount }}<small class="laps-total">/{{ distance.totalLaps }}</small></c-badge>
+                              <c-badge color="secondary" class="laps-badge">{{ race.laps_count }}<small class="laps-total">/{{ distance.totalLaps }}</small></c-badge>
                             } @else {
-                              <c-badge color="secondary">{{ race.lapsCount }} lap{{ race.lapsCount !== 1 ? 's' : '' }}</c-badge>
+                              <c-badge color="secondary">{{ race.laps_count }} lap{{ race.laps_count !== 1 ? 's' : '' }}</c-badge>
                             }
-                            @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
-                              <span class="race-time">{{ splitFormattedTime(race.formattedTotalTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formattedTotalTime)[1] }}</small></span>
+                            @if (race.formatted_total_time && race.formatted_total_time !== 'No Time') {
+                              <span class="race-time">{{ splitFormattedTime(race.formatted_total_time)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formatted_total_time)[1] }}</small></span>
                             } @else {
                               <span class="text-muted small">No Time</span>
                             }
                           </div>
                         </div>
                       }
-                      <!-- Finishing line: single absolutely-positioned overlay, transitions to the correct row -->
+                      <!-- Finishing line overlay -->
                       @if (distance.finishingLineAfter && finishLineTopPx.get(distance.id)) {
                         <div class="finishing-line d-flex align-items-center gap-2"
                              [style.top.px]="finishLineTopPx.get(distance.id)">

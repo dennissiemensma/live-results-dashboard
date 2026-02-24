@@ -1,7 +1,8 @@
 import { Component, OnDestroy, OnInit, AfterViewChecked, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Title } from '@angular/platform-browser';
 import { DataService } from '../../services/data.service';
-import { ProcessedDistance } from '../../models/data.models';
+import { ProcessedDistance, StandingsGroup } from '../../models/data.models';
 import { Observable, combineLatest, timer, map, Subscription } from 'rxjs';
 import {
   AccordionModule,
@@ -95,9 +96,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
   private pulseTimeout: ReturnType<typeof setTimeout> | null = null;
   private dataSub: Subscription | null = null;
   private distSub: Subscription | null = null;
+  private titleSub: Subscription | null = null;
   private _lastDistances: ProcessedDistance[] = [];
 
-  constructor(public dataService: DataService, private el: ElementRef) {
+  constructor(public dataService: DataService, private el: ElementRef, private titleService: Title) {
     this.status$ = this.dataService.status$;
     this.eventName$ = this.dataService.eventName$;
     this.errors$ = this.dataService.errors$;
@@ -127,6 +129,9 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   ngOnInit() {
+    this.titleSub = this.dataService.eventName$.subscribe(name => {
+      this.titleService.setTitle(name ? `${name} | Live Results Dashboard` : 'Live Results Dashboard');
+    });
     this.dataSub = this.dataService.lastDataReceived$.subscribe((ts) => {
       if (!ts) return;
       this.pulseActive = true;
@@ -141,6 +146,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
   ngOnDestroy() {
     this.dataSub?.unsubscribe();
     this.distSub?.unsubscribe();
+    this.titleSub?.unsubscribe();
     if (this.pulseTimeout) clearTimeout(this.pulseTimeout);
   }
 
@@ -206,17 +212,17 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
    * standings group (different lapsCount from the previous race), so we can
    * render a small visual gap between groups.
    */
-  isFirstInNewGroup(distance: import('../../models/data.models').ProcessedDistance, raceIdx: number): boolean {
+  isFirstInNewGroup(distance: ProcessedDistance, raceIdx: number): boolean {
     const races = distance.processedRaces;
     if (!races || raceIdx <= 0 || raceIdx >= races.length) return false;
-    return races[raceIdx].lapsCount !== races[raceIdx - 1].lapsCount;
+    return races[raceIdx].laps_count !== races[raceIdx - 1].laps_count;
   }
 
   /**
    * Returns the StandingsGroup that contains the given race id, or null.
    * Used to render a group divider above the first member of each group.
    */
-  groupForRace(distance: import('../../models/data.models').ProcessedDistance, raceId: string): import('../../models/data.models').StandingsGroup | null {
+  groupForRace(distance: ProcessedDistance, raceId: string): StandingsGroup | null {
     if (!distance.standingsGroups) return null;
     return distance.standingsGroups.find(g => g.races[0]?.id === raceId) ?? null;
   }

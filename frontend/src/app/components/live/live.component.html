@@ -53,27 +53,27 @@
                             <div
                               class="race-item d-flex justify-content-between align-items-center p-2 mb-1 rounded"
                               [class.flash-update]="isRecentUpdate(race.lastUpdated)"
-                              [class.pos-up]="race.positionChange === 'up'"
-                              [class.pos-down]="race.positionChange === 'down'"
+                              [class.pos-up]="race.position_change === 'up'"
+                              [class.pos-down]="race.position_change === 'down'"
                             >
                               <div class="d-flex align-items-center gap-2">
                                 <c-badge
                                   [style.background-color]="race.lane"
                                   [ngClass]="badgeTextClass(race.lane)" class="start-num-badge"
                                 >
-                                  {{ padStartNumber(race.startNumber) }}
+                                  {{ padStartNumber(race.start_number) }}
                                 </c-badge>
-                                <span>{{ race.competitorName }}</span>
+                                <span>{{ race.name }}</span>
                               </div>
                               <div class="d-flex align-items-center gap-2">
                                 <c-badge color="secondary">
-                                  {{ race.lapsCount }} lap{{ race.lapsCount !== 1 ? 's' : '' }}
+                                  {{ race.laps_count }} lap{{ race.laps_count !== 1 ? 's' : '' }}
                                 </c-badge>
-                                @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
+                                @if (race.formatted_total_time && race.formatted_total_time !== 'No Time') {
                                   <span class="race-time">
-                                    {{ splitFormattedTime(race.formattedTotalTime)[0]
+                                    {{ splitFormattedTime(race.formatted_total_time)[0]
                                     }}<small class="time-decimal">{{
-                                      splitFormattedTime(race.formattedTotalTime)[1]
+                                      splitFormattedTime(race.formatted_total_time)[1]
                                     }}</small>
                                   </span>
                                 } @else {
@@ -96,22 +96,22 @@
                       <div
                         class="race-item d-flex justify-content-between align-items-center p-2 mb-1 rounded"
                         [class.flash-update]="isRecentUpdate(race.lastUpdated)"
-                        [class.pos-up]="race.positionChange === 'up'"
-                        [class.pos-down]="race.positionChange === 'down'"
+                        [class.pos-up]="race.position_change === 'up'"
+                        [class.pos-down]="race.position_change === 'down'"
                       >
                         <div class="d-flex align-items-center gap-2">
-                          <c-badge class="badge-black">{{ padStartNumber(race.startNumber) }}</c-badge>
-                          <span>{{ race.competitorName }}</span>
+                          <c-badge class="badge-black">{{ padStartNumber(race.start_number) }}</c-badge>
+                          <span>{{ race.name }}</span>
                         </div>
                         <div class="d-flex align-items-center gap-2">
                           <c-badge color="secondary">
-                            {{ race.lapsCount }} lap{{ race.lapsCount !== 1 ? 's' : '' }}
+                            {{ race.laps_count }} lap{{ race.laps_count !== 1 ? 's' : '' }}
                           </c-badge>
-                          @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
+                          @if (race.formatted_total_time && race.formatted_total_time !== 'No Time') {
                             <span class="race-time">
-                              {{ splitFormattedTime(race.formattedTotalTime)[0]
+                              {{ splitFormattedTime(race.formatted_total_time)[0]
                               }}<small class="time-decimal">{{
-                                splitFormattedTime(race.formattedTotalTime)[1]
+                                splitFormattedTime(race.formatted_total_time)[1]
                               }}</small>
                             </span>
                           } @else {
@@ -155,24 +155,24 @@
                             <div
                               class="race-item-group d-flex justify-content-between align-items-center mb-1 rounded px-1"
                               [class.flash-update]="isRecentUpdate(race.lastUpdated)"
-                              [class.pos-up]="race.positionChange === 'up'"
-                              [class.pos-down]="race.positionChange === 'down'"
+                              [class.pos-up]="race.position_change === 'up'"
+                              [class.pos-down]="race.position_change === 'down'"
                             >
                               <div class="d-flex align-items-center gap-2">
-                                <c-badge class="badge-black">{{ padStartNumber(race.startNumber) }}</c-badge>
-                                <span class="small">{{ race.competitorName }}</span>
+                                <c-badge class="badge-black">{{ padStartNumber(race.start_number) }}</c-badge>
+                                <span class="small">{{ race.name }}</span>
                               </div>
                               @if (firstRace) {
-                                @if (race.formattedTotalTime && race.formattedTotalTime !== 'No Time') {
+                                @if (race.formatted_total_time && race.formatted_total_time !== 'No Time') {
                                   <span class="race-time small">
-                                    {{ splitFormattedTime(race.formattedTotalTime)[0]
+                                    {{ splitFormattedTime(race.formatted_total_time)[0]
                                     }}<small class="time-decimal">{{
-                                      splitFormattedTime(race.formattedTotalTime)[1]
+                                      splitFormattedTime(race.formatted_total_time)[1]
                                     }}</small>
                                   </span>
                                 }
                               } @else {
-                                <span class="text-muted small fst-italic">{{ race.gapToAbove }}</span>
+                                <span class="text-muted small fst-italic">{{ race.gap_to_above }}</span>
                               }
                             </div>
                           }

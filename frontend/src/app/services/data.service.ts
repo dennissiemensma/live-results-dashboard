@@ -1,7 +1,11 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { BehaviorSubject } from 'rxjs';
-import { LiveData, ProcessedDistance, ProcessedRace, Distance, HeatGroup, StandingsGroup } from '../models/data.models';
+import {
+  DistanceMeta,
+  CompetitorUpdate,
+  ProcessedDistance,
+} from '../models/data.models';
 
 export interface BackendStatus {
   status: 'Disconnected' | 'Connecting...' | 'Connected' | 'Error';
@@ -9,18 +13,16 @@ export interface BackendStatus {
   interval: number | null;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+/** Max time (ms) spent processing queued messages per render cycle. */
+const RENDER_INTERVAL_MS = 250;
+
+@Injectable({ providedIn: 'root' })
 export class DataService {
   private socket$: WebSocketSubject<any> | null = null;
   private readonly BACKEND_URL = `ws://${window.location.hostname}:5000/ws`;
 
-  private _status = new BehaviorSubject<BackendStatus>({
-    status: 'Disconnected',
-    url: '',
-    interval: null
-  });
+  // ── public observables ───────────────────────────────────────────────────
+  private _status = new BehaviorSubject<BackendStatus>({ status: 'Disconnected', url: '', interval: null });
   public status$ = this._status.asObservable();
 
   private _processedData = new BehaviorSubject<ProcessedDistance[]>([]);
@@ -35,384 +37,273 @@ export class DataService {
   private _lastDataReceived = new BehaviorSubject<number>(0);
   public lastDataReceived$ = this._lastDataReceived.asObservable();
 
-  constructor() {
-    // Auto-connect on service init (page load)
-    this.connect();
-  }
+  // ── internal state ───────────────────────────────────────────────────────
+  /** Map of distance id → ProcessedDistance (mutable local state) */
+  private distanceMap = new Map<string, ProcessedDistance>();
+  /** Map of distance id → Map of competitor id → CompetitorUpdate */
+  private competitorMap = new Map<string, Map<string, CompetitorUpdate>>();
+
+  /** Incoming message queue */
+  private queue: any[] = [];
+  private renderLoopRunning = false;
 
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  private scheduleReconnect() {
-    if (this.reconnectTimer) return; // already scheduled
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      this.connect();
-    }, 5000);
+  constructor(private ngZone: NgZone) {
+    this._restoreFromStorage();
+    this.connect();
   }
 
-  private cancelReconnect() {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-  }
+  // ── connection ────────────────────────────────────────────────────────────
 
   connect() {
     if (this.socket$ && !this.socket$.closed) return;
-
-    // Keep localStorage — do not wipe
     this._errors.next([]);
     this._status.next({ status: 'Connecting...', url: '', interval: null });
     this.socket$ = webSocket({ url: this.BACKEND_URL, openObserver: { next: () => {} } });
-
     this.socket$.subscribe({
-      next: (msg: any) => this.handleMessage(msg),
-      error: (err) => this.handleError(err),
-      complete: () => this.handleDisconnect()
+      next: (msg: any) => this._enqueue(msg),
+      error: (err: any) => this._handleError(err),
+      complete: () => this._handleDisconnect(),
     });
   }
 
   disconnect() {
-    this.cancelReconnect();
-    if (this.socket$) {
-      this.socket$.complete();
-      this.socket$ = null;
-    }
+    this._cancelReconnect();
+    this.socket$?.complete();
+    this.socket$ = null;
     this._status.next({ status: 'Disconnected', url: '', interval: null });
   }
 
-  /** Clear local storage and reload the page */
   resetDashboard() {
     localStorage.clear();
     window.location.reload();
   }
 
-  private handleMessage(msg: any) {
-    if (msg.type === 'status') {
-      this.cancelReconnect();
-      this.clearErrors(); // clear any "connection lost" errors on successful reconnect
-      this._status.next({
-        status: 'Connected',
-        url: msg.data.data_source_url,
-        interval: msg.data.data_source_interval
-      });
-    } else if (msg.type === 'data') {
-      const data = msg.data as LiveData;
-      if (data.success === false) {
-        this.addError('Received update with success=false');
-      } else {
-        this._eventName.next(data.name);
-        this._lastDataReceived.next(Date.now());
-        this.processData(data.distances);
-      }
+  // ── message queue & render loop ───────────────────────────────────────────
+
+  private _enqueue(msg: any) {
+    this.queue.push(msg);
+    if (!this.renderLoopRunning) {
+      this.renderLoopRunning = true;
+      // Run outside Angular zone so setTimeout doesn't trigger extra CD cycles
+      this.ngZone.runOutsideAngular(() => this._scheduleNextCycle());
     }
   }
 
-  private processData(distances: Distance[]) {
-    const processedDistances: ProcessedDistance[] = distances.map(distance => {
+  private _scheduleNextCycle() {
+    setTimeout(() => this._runCycle(), 0);
+  }
 
-      // Mass start: over 2 races AND all have the same heat
-      let isMassStart = false;
-      if (distance.races && distance.races.length > 2) {
-        const firstHeat = distance.races[0].heat;
-        isMassStart = distance.races.every(r => r.heat === firstHeat);
-      }
+  private _runCycle() {
+    if (this.queue.length === 0) {
+      this.renderLoopRunning = false;
+      return;
+    }
 
-      // Extract distance in meters or total laps from the title
-      let distanceMeters: number | undefined;
-      let totalLaps: number | undefined;
-      if (isMassStart) {
-        const lapsMatch = distance.name.match(/(\d+)\s*(?:laps?|ronden?|rondes?)/i);
-        if (lapsMatch) totalLaps = parseInt(lapsMatch[1], 10);
-      } else {
-        const metersMatch = distance.name.match(/(\d+)\s*(?:m\b|meter)/i);
-        if (metersMatch) distanceMeters = parseInt(metersMatch[1], 10);
-      }
+    const deadline = Date.now() + RENDER_INTERVAL_MS;
+    let changed = false;
 
-      const processedRaces: ProcessedRace[] = distance.races.map(race => {
-        let laps = race.laps ? [...race.laps] : [];
+    while (this.queue.length > 0 && Date.now() < deadline) {
+      const msg = this.queue.shift();
+      changed = this._applyMessage(msg) || changed;
+    }
 
-        // Mass start: omit the first lap (warmup/dummy lap)
-        if (isMassStart && laps.length > 0) {
-          laps = laps.slice(1);
-        }
-
-        // Total time = highest time value among laps
-        let maxTime: string | null = null;
-        let formattedTime: string = 'No Time';
-        const lapTimes: string[] = [];
-
-        if (laps.length > 0) {
-          const sortedLaps = [...laps].sort((a, b) => a.time.localeCompare(b.time));
-          maxTime = sortedLaps[sortedLaps.length - 1].time;
-          if (maxTime) formattedTime = this.formatTime(maxTime);
-          lapTimes.push(...laps.map(l => l.lapTime ? this.formatTime(l.lapTime) : ''));
-        }
-
-        // Mass start: black badges; non-mass-start: lane color
-        const lane = isMassStart ? 'black' : (race.lane || 'black');
-
-        const newRace: ProcessedRace = {
-          id: race.id,
-          competitorName: race.competitor.name,
-          startNumber: race.competitor.startNumber,
-          lane,
-          heat: race.heat,
-          lapsCount: laps.length,
-          totalTime: maxTime || '',
-          formattedTotalTime: formattedTime,
-          lapTimes,
-          lastUpdated: 0
-        };
-
-        // Compare with localStorage to detect time/lap updates
-        const storedKey = `race_${race.id}`;
-        const storedRaceJson = localStorage.getItem(storedKey);
-        if (storedRaceJson) {
-          const storedRace = JSON.parse(storedRaceJson) as ProcessedRace;
-          if (storedRace.totalTime !== newRace.totalTime || storedRace.lapsCount !== newRace.lapsCount) {
-            newRace.lastUpdated = Date.now();
-          } else {
-            newRace.lastUpdated = storedRace.lastUpdated;
-          }
-        }
-        localStorage.setItem(storedKey, JSON.stringify(newRace));
-        return newRace;
+    if (changed) {
+      // Re-enter Angular zone to trigger change detection
+      this.ngZone.run(() => {
+        this._publishState();
       });
+    }
 
-      // Sort races: laps descending, then total time ascending
-      processedRaces.sort((a, b) => {
-        if (b.lapsCount !== a.lapsCount) return b.lapsCount - a.lapsCount;
-        const timeA = a.totalTime || '99:99:99';
-        const timeB = b.totalTime || '99:99:99';
-        return timeA.localeCompare(timeB);
-      });
+    if (this.queue.length > 0) {
+      this._scheduleNextCycle();
+    } else {
+      this.renderLoopRunning = false;
+    }
+  }
 
-      // Detect position changes (overall list)
-      processedRaces.forEach((race, newIndex) => {
-        const posKey = `pos_${distance.id}_${race.id}`;
-        const storedPos = localStorage.getItem(posKey);
-        if (storedPos !== null) {
-          const prevIndex = parseInt(storedPos, 10);
-          race.positionChange = newIndex < prevIndex ? 'up' : newIndex > prevIndex ? 'down' : null;
-        } else {
-          race.positionChange = null;
-        }
-        localStorage.setItem(posKey, String(newIndex));
-      });
+  // ── message handlers ──────────────────────────────────────────────────────
 
-      let heatGroups: HeatGroup[] | undefined;
-      let standingsGroups: StandingsGroup[] | undefined;
-
-      if (!isMassStart) {
-        const heatMap = new Map<number, ProcessedRace[]>();
-        for (const race of processedRaces) {
-          if (!heatMap.has(race.heat)) heatMap.set(race.heat, []);
-          heatMap.get(race.heat)!.push(race);
-        }
-        const sortedHeats = Array.from(heatMap.keys()).sort((a, b) => a - b);
-        heatGroups = sortedHeats.map(heat => {
-          const races = heatMap.get(heat)!;
-          races.sort((a, b) => {
-            if (!a.totalTime && !b.totalTime) return 0;
-            if (!a.totalTime) return 1;
-            if (!b.totalTime) return -1;
-            return a.totalTime.localeCompare(b.totalTime);
+  /** Apply one message to local state. Returns true if view state changed. */
+  private _applyMessage(msg: any): boolean {
+    switch (msg.type) {
+      case 'status':
+        this._cancelReconnect();
+        this.clearErrors();
+        this.ngZone.run(() => {
+          this._status.next({
+            status: 'Connected',
+            url: msg.data.data_source_url,
+            interval: msg.data.data_source_interval,
           });
-          races.forEach((race, newIndex) => {
-            const posKey = `pos_${distance.id}_heat${heat}_${race.id}`;
-            const storedPos = localStorage.getItem(posKey);
-            if (storedPos !== null) {
-              const prevIndex = parseInt(storedPos, 10);
-              race.positionChange = newIndex < prevIndex ? 'up' : newIndex > prevIndex ? 'down' : null;
-            } else {
-              race.positionChange = null;
-            }
-            localStorage.setItem(posKey, String(newIndex));
-          });
-          return { heat, races };
         });
-      } else {
-        // ── assign lapsRemaining / isFinalLap / finishedRank ──────────────────────────────
-        if (totalLaps) {
-          let finishRank = 1;
-          for (const race of processedRaces) {
-            race.lapsRemaining = Math.max(0, totalLaps - race.lapsCount);
-            race.isFinalLap = race.lapsRemaining === 1;
-            if (race.lapsRemaining === 0) {
-              race.finishedRank = finishRank++;
-            } else {
-              race.finishedRank = undefined;
-            }
-          }
-        }
+        return false;
 
-        // ── find finishing line: last race that received a lap this update ──
-        // (the last race in sorted order whose lastUpdated === Date.now() tick)
-        const recentTs = Math.max(...processedRaces.map(r => r.lastUpdated || 0));
-        const updatedThisTick = processedRaces.filter(r => r.lastUpdated === recentTs && recentTs > 0);
-        const finishingLineAfter = updatedThisTick.length > 0
-          ? updatedThisTick[updatedThisTick.length - 1].id
-          : null;
+      case 'event_name':
+        this.ngZone.run(() => this._eventName.next(msg.data.name));
+        return false;
 
-        // ── build standings groups (exclude finished competitors) ─────────
-        const racesForGroups = processedRaces.filter(r => r.finishedRank == null);
-        const groups: StandingsGroup[] = [];
-        let currentGroup: StandingsGroup | null = null;
-        for (const race of racesForGroups) {
-          if (!currentGroup) {
-            currentGroup = { laps: race.lapsCount, races: [race], groupNumber: 1, isLastGroup: false };
-            groups.push(currentGroup!);
-          } else if (race.lapsCount === currentGroup.laps) {
-            const lastRace = currentGroup.races[currentGroup.races.length - 1];
-            const diff = this.getTimeDifferenceInSeconds(lastRace.totalTime, race.totalTime);
-            if (diff <= 2.0) {
-              currentGroup.races.push(race);
-            } else {
-              currentGroup = { laps: race.lapsCount, races: [race], groupNumber: groups.length + 1, isLastGroup: false };
-              groups.push(currentGroup!);
-            }
-          } else {
-            currentGroup = { laps: race.lapsCount, races: [race], groupNumber: groups.length + 1, isLastGroup: false };
-            groups.push(currentGroup!);
-          }
-        }
+      case 'error':
+        this.ngZone.run(() => this.addError(msg.data));
+        return false;
 
-        for (const group of groups) {
-          group.races.sort((a, b) => {
-            if (!a.totalTime && !b.totalTime) return 0;
-            if (!a.totalTime) return 1;
-            if (!b.totalTime) return -1;
-            return a.totalTime.localeCompare(b.totalTime);
-          });
-        }
+      case 'distance_meta':
+        return this._applyDistanceMeta(msg.data as DistanceMeta);
 
-        const overallLeaderTime = groups.length > 0 && groups[0].races.length > 0
-          ? groups[0].races[0].totalTime : null;
+      case 'competitor_update':
+        return this._applyCompetitorUpdate(msg.data as CompetitorUpdate);
 
-        for (let gi = 0; gi < groups.length; gi++) {
-          const group = groups[gi];
-
-          if (group.races.length > 0 && group.races[0].totalTime) {
-            group.leaderTime = group.races[0].formattedTotalTime;
-          }
-
-          // intra-group gaps
-          for (let ri = 1; ri < group.races.length; ri++) {
-            const prev = group.races[ri - 1];
-            const curr = group.races[ri];
-            if (prev.totalTime && curr.totalTime) {
-              const diff = this.getTimeDifferenceInSeconds(prev.totalTime, curr.totalTime);
-              curr.gapToAbove = `+${diff.toFixed(3)}s`;
-            }
-          }
-
-          if (gi > 0) {
-            // gapToGroupAhead: first of this group vs last of group directly ahead
-            const prevGroup = groups[gi - 1];
-            const lastOfPrev = prevGroup.races[prevGroup.races.length - 1];
-            const firstOfCurr = group.races[0];
-            if (lastOfPrev.totalTime && firstOfCurr.totalTime) {
-              const diff = this.getTimeDifferenceInSeconds(lastOfPrev.totalTime, firstOfCurr.totalTime);
-              group.gapToGroupAhead = `+${diff.toFixed(3)}s`;
-            }
-
-            // timeBehindLeader: first of this group vs overall leader
-            if (overallLeaderTime && firstOfCurr.totalTime) {
-              const behind = this.getTimeDifferenceInSeconds(overallLeaderTime, firstOfCurr.totalTime);
-              group.timeBehindLeader = `+${behind.toFixed(3)}s`;
-            }
-          }
-        }
-        standingsGroups = groups;
-        // Mark tail group so the template can apply the correct leave animation
-        if (groups.length > 0) {
-          groups[groups.length - 1].isLastGroup = true;
-        }
-
-        // Store finishingLineAfter on the distance for template use
-        (distance as any)._finishingLineAfter = finishingLineAfter;
-        (distance as any)._anyFinished = processedRaces.some(r => r.finishedRank != null);
-      }
-
-      return {
-        ...distance,
-        isMassStart,
-        distanceMeters,
-        totalLaps,
-        processedRaces,
-        heatGroups,
-        standingsGroups,
-        finishingLineAfter: (distance as any)._finishingLineAfter ?? null,
-        anyFinished: (distance as any)._anyFinished ?? false,
-      } as ProcessedDistance;
-    });
-
-    this._processedData.next(processedDistances);
-  }
-
-  // Format time: strip leading zeros, truncate to 3 decimal places
-  // e.g. 00:01:23.4560000 -> 1:23.456
-  formatTime(timeStr: string): string {
-    if (!timeStr) return '';
-    const colonParts = timeStr.split(':');
-    const resultParts: string[] = [];
-    let foundNonZero = false;
-    for (let i = 0; i < colonParts.length; i++) {
-      const part = colonParts[i];
-      const isLast = i === colonParts.length - 1;
-      if (isLast) {
-        const dotIdx = part.indexOf('.');
-        if (dotIdx !== -1) {
-          let intPart = part.substring(0, dotIdx);
-          let decPart = part.substring(dotIdx + 1);
-          if (decPart.length > 3) decPart = decPart.substring(0, 3);
-          if (!foundNonZero) intPart = intPart.replace(/^0+/, '') || '0';
-          resultParts.push(intPart + '.' + decPart);
-        } else {
-          let intPart = part;
-          if (!foundNonZero) intPart = intPart.replace(/^0+/, '') || '0';
-          resultParts.push(intPart);
-        }
-      } else {
-        const numVal = parseInt(part, 10);
-        if (!foundNonZero && numVal === 0) continue;
-        foundNonZero = true;
-        resultParts.push(String(numVal));
-      }
+      default:
+        return false;
     }
-    return resultParts.join(':');
   }
 
-  private getTimeDifferenceInSeconds(timeA: string, timeB: string): number {
-    if (!timeA || !timeB) return 9999;
-    const toSeconds = (t: string) => {
-      const parts = t.split(':');
-      let s = 0;
-      if (parts.length === 3) { s += parseInt(parts[0]) * 3600; s += parseInt(parts[1]) * 60; s += parseFloat(parts[2]); }
-      else if (parts.length === 2) { s += parseInt(parts[0]) * 60; s += parseFloat(parts[1]); }
-      else { s += parseFloat(parts[0]); }
-      return s;
-    };
-    return Math.abs(toSeconds(timeA) - toSeconds(timeB));
-  }
-
-  private handleError(err: any) {
-    console.error('WebSocket error:', err);
-    this.addError('Connection to backend lost. Reconnecting in 5s…');
-    this.socket$ = null;
-    this._status.next({ status: 'Error', url: '', interval: null });
-    this.scheduleReconnect();
-  }
-
-  private handleDisconnect() {
-    if (this._status.value.status === 'Connected' || this._status.value.status === 'Connecting...') {
-      this.addError('Connection to backend lost. Reconnecting in 5s…');
+  private _applyDistanceMeta(meta: DistanceMeta): boolean {
+    let dist = this.distanceMap.get(meta.id);
+    if (!dist) {
+      dist = {
+        id: meta.id,
+        name: meta.name,
+        eventNumber: meta.event_number,
+        isLive: meta.is_live,
+        isMassStart: meta.is_mass_start,
+        distanceMeters: meta.distance_meters,
+        totalLaps: meta.total_laps,
+        anyFinished: meta.any_finished,
+        finishingLineAfter: meta.finishing_line_after,
+        processedRaces: [],
+        standingsGroups: [],
+        heatGroups: [],
+      };
+      this.distanceMap.set(meta.id, dist);
+    } else {
+      dist.name = meta.name;
+      dist.eventNumber = meta.event_number;
+      dist.isLive = meta.is_live;
+      dist.isMassStart = meta.is_mass_start;
+      dist.distanceMeters = meta.distance_meters;
+      dist.totalLaps = meta.total_laps;
+      dist.anyFinished = meta.any_finished;
+      dist.finishingLineAfter = meta.finishing_line_after;
     }
-    this.socket$ = null;
-    this._status.next({ status: 'Disconnected', url: '', interval: null });
-    this.scheduleReconnect();
+
+    // Resolve standings groups (races populated later from competitorMap)
+    dist.standingsGroups = meta.standings_groups.map(sg => ({
+      groupNumber: sg.group_number,
+      laps: sg.laps,
+      leaderTime: sg.leader_time,
+      gapToGroupAhead: sg.gap_to_group_ahead,
+      timeBehindLeader: sg.time_behind_leader,
+      isLastGroup: sg.is_last_group,
+      races: this._resolveRaces(meta.id, sg.race_ids),
+    }));
+
+    dist.heatGroups = meta.heat_groups.map(hg => ({
+      heat: hg.heat,
+      races: this._resolveRaces(meta.id, hg.race_ids),
+    }));
+
+    this._saveDistanceToStorage(dist);
+    return true;
   }
+
+  private _applyCompetitorUpdate(comp: CompetitorUpdate): boolean {
+    comp.lastUpdated = Date.now();
+    this._lastDataReceived.next(comp.lastUpdated);
+
+    let distComps = this.competitorMap.get(comp.distance_id);
+    if (!distComps) {
+      distComps = new Map();
+      this.competitorMap.set(comp.distance_id, distComps);
+    }
+    distComps.set(comp.id, comp);
+    this._saveCompetitorToStorage(comp);
+
+    // Rebuild processedRaces for the distance (order by position from backend)
+    const dist = this.distanceMap.get(comp.distance_id);
+    if (dist) {
+      const allComps = Array.from(distComps.values());
+      allComps.sort((a, b) => a.position - b.position);
+      dist.processedRaces = allComps;
+
+      // Re-resolve group races now that competitor data is fresh
+      dist.standingsGroups.forEach(sg => {
+        sg.races = this._resolveRaces(comp.distance_id, sg.races.map(r => r.id));
+      });
+      dist.heatGroups.forEach(hg => {
+        hg.races = this._resolveRaces(comp.distance_id, hg.races.map(r => r.id));
+      });
+    }
+    return true;
+  }
+
+  private _resolveRaces(distId: string, ids: string[]): CompetitorUpdate[] {
+    const distComps = this.competitorMap.get(distId);
+    if (!distComps) return [];
+    return ids.map(id => distComps.get(id)).filter((c): c is CompetitorUpdate => !!c);
+  }
+
+  // ── publish to observables ────────────────────────────────────────────────
+
+  private _publishState() {
+    const distances = Array.from(this.distanceMap.values())
+      .sort((a, b) => b.eventNumber - a.eventNumber);
+    this._processedData.next(distances);
+  }
+
+  // ── localStorage persistence ──────────────────────────────────────────────
+
+  private _saveDistanceToStorage(dist: ProcessedDistance) {
+    try {
+      // Store only scalar meta — competitors stored separately
+      const meta = { ...dist, processedRaces: [], standingsGroups: [], heatGroups: [] };
+      localStorage.setItem(`dist_${dist.id}`, JSON.stringify(meta));
+    } catch {}
+  }
+
+  private _saveCompetitorToStorage(comp: CompetitorUpdate) {
+    try {
+      localStorage.setItem(`comp_${comp.distance_id}_${comp.id}`, JSON.stringify(comp));
+    } catch {}
+  }
+
+  private _restoreFromStorage() {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)!;
+        if (key.startsWith('dist_')) {
+          const dist: ProcessedDistance = JSON.parse(localStorage.getItem(key)!);
+          dist.processedRaces = [];
+          dist.standingsGroups = [];
+          dist.heatGroups = [];
+          this.distanceMap.set(dist.id, dist);
+        }
+      }
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)!;
+        if (key.startsWith('comp_')) {
+          const comp: CompetitorUpdate = JSON.parse(localStorage.getItem(key)!);
+          let distComps = this.competitorMap.get(comp.distance_id);
+          if (!distComps) {
+            distComps = new Map();
+            this.competitorMap.set(comp.distance_id, distComps);
+          }
+          distComps.set(comp.id, comp);
+        }
+      }
+      // Rebuild processedRaces for each distance
+      for (const [distId, dist] of this.distanceMap) {
+        const comps = this.competitorMap.get(distId);
+        if (comps) {
+          dist.processedRaces = Array.from(comps.values()).sort((a, b) => a.position - b.position);
+        }
+      }
+      this._publishState();
+    } catch {}
+  }
+
+  // ── error helpers ─────────────────────────────────────────────────────────
 
   addError(msg: string) {
     this._errors.next([...this._errors.value, msg]);
@@ -426,5 +317,39 @@ export class DataService {
 
   clearErrors() {
     this._errors.next([]);
+  }
+
+  // ── reconnect ─────────────────────────────────────────────────────────────
+
+  private _scheduleReconnect() {
+    if (this.reconnectTimer) return;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connect();
+    }, 5000);
+  }
+
+  private _cancelReconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  private _handleError(err: any) {
+    console.error('WebSocket error:', err);
+    this.addError('Connection to backend lost. Reconnecting in 5s…');
+    this.socket$ = null;
+    this._status.next({ status: 'Error', url: '', interval: null });
+    this._scheduleReconnect();
+  }
+
+  private _handleDisconnect() {
+    if (this._status.value.status === 'Connected' || this._status.value.status === 'Connecting...') {
+      this.addError('Connection to backend lost. Reconnecting in 5s…');
+    }
+    this.socket$ = null;
+    this._status.next({ status: 'Disconnected', url: '', interval: null });
+    this._scheduleReconnect();
   }
 }

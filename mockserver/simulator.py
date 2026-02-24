@@ -6,11 +6,11 @@ mutated in real-time to simulate a realistic inline-skating mass-start race.
 Simulation model
 ────────────────
 • Competitors are split into two tiers at race start:
-  - Main pack (all but last): paces drawn within a 10 s window so they
+  - Main pack (all but last): paces drawn within a 5 s window so they
     stay on the same lap and produce realistic group / position-change dynamics.
   - Loner (last competitor): a distinctly slower fixed pace, always a lap
     or more behind the pack.
-• A per-lap noise of ±LAP_NOISE (5 s) is applied to pack competitors each lap,
+• A per-lap noise of ±LAP_NOISE (1 s) is applied to pack competitors each lap,
   clamped to [LAP_MIN - LAP_NOISE, LAP_MAX + LAP_NOISE].  The loner gets no
   noise — it moves at a steady, predictable rate.
 • Competitors are ticked independently: a competitor completes their next lap
@@ -44,9 +44,11 @@ Faker.seed(0)  # reproducible across restarts until explicitly re-seeded each ra
 
 # ── config ────────────────────────────────────────────────────────────────────
 TICK_INTERVAL = 0.5     # seconds between simulation ticks (fine-grained)
+WARMUP_MIN = 10.0       # minimum warmup lap duration (seconds)
+WARMUP_MAX = 15.0       # maximum warmup lap duration (seconds)
 LAP_MIN = 10.0          # minimum lap time (seconds)
 LAP_MAX = 30.0          # maximum lap time (seconds)
-LAP_NOISE = 5.0         # ± per-lap random noise on top of personal pace
+LAP_NOISE = 1.0         # ± per-lap random noise on top of personal pace
 MAX_LAPS = 20           # total race laps (excl. warmup lap)
 
 # ── load base data ────────────────────────────────────────────────────────────
@@ -71,12 +73,6 @@ log.info("Live mass-start distance id: %s", _live_dist_id)
 
 
 # ── time helpers ──────────────────────────────────────────────────────────────
-
-def _parse_time(t: str) -> float:
-    """Parse HH:MM:SS.fffffff → total seconds."""
-    h, m, s = t.split(":")
-    return int(h) * 3600 + int(m) * 60 + float(s)
-
 
 def _fmt(total_seconds: float) -> str:
     """Format seconds → HH:MM:SS.7f matching source-data format."""
@@ -118,7 +114,12 @@ def _assign_fake_names(state: dict) -> None:
 
 
 def _init_simulation() -> None:
-    """Build fresh _state and _sims from the base data."""
+    """Build fresh _state and _sims from the base data.
+
+    All existing laps are cleared.  Each competitor is given a single warmup
+    lap (lap 0, duration WARMUP_MIN–WARMUP_MAX s) so the backend sees every
+    competitor at lap 0 on first fetch.  The simulation then ticks from there.
+    """
     global _state, _sims, _race_finished
 
     _state = copy.deepcopy(_base_data)
@@ -131,18 +132,13 @@ def _init_simulation() -> None:
         log.warning("No live mass-start distance found — simulation idle")
         return
 
-    # Ensure isLive is True at the start of a new race
     dist["isLive"] = True
 
     now = time.monotonic()
     races = dist["races"]
 
-    # Two-tier pacing:
-    #   Main pack (all but last): paces within a 10s window so they stay
-    #   on the same lap and produce interesting group dynamics.
-    #   Last competitor: a distinctly slower steady pace on its own.
-    PACK_WINDOW = 10.0          # max spread within the main pack (seconds/lap)
-    LONER_GAP   = 15.0          # how much slower the loner is vs the slowest pack member
+    PACK_WINDOW = 5.0    # max spread within the main pack (seconds/lap)
+    LONER_GAP   = 15.0   # how much slower the loner is vs the slowest pack member
 
     pack_base = random.uniform(LAP_MIN, LAP_MAX - PACK_WINDOW)
     pack_races = races[:-1]
@@ -150,26 +146,31 @@ def _init_simulation() -> None:
 
     for race in pack_races:
         rid = race["id"]
-        warmup_time = _parse_time(race["laps"][0]["time"]) if race["laps"] else 0.0
+        warmup_secs = random.uniform(WARMUP_MIN, WARMUP_MAX)
         pace = pack_base + random.uniform(0.0, PACK_WINDOW)
         jitter = random.uniform(0.0, pace * 0.25)
+
+        # Clear pre-existing laps; seed single warmup lap (lap 0)
+        race["laps"] = [{"time": _fmt(warmup_secs), "lapTime": _fmt(warmup_secs)}]
+
         _sims[rid] = CompetitorSim(
             race_id=rid,
             personal_pace=pace,
-            next_lap_at=now + warmup_time + pace + jitter,
-            elapsed_race_time=warmup_time,
-            laps_done=len(race["laps"]) - 1,
+            next_lap_at=now + warmup_secs + pace + jitter,
+            elapsed_race_time=warmup_secs,
+            laps_done=0,
         )
 
-    # Loner: fixed slow pace, no jitter so it moves at a steady predictable rate
+    # Loner: fixed slow pace, no jitter
+    loner_warmup = random.uniform(WARMUP_MIN, WARMUP_MAX)
     loner_pace = pack_base + PACK_WINDOW + LONER_GAP
-    loner_warmup = _parse_time(loner_race["laps"][0]["time"]) if loner_race["laps"] else 0.0
+    loner_race["laps"] = [{"time": _fmt(loner_warmup), "lapTime": _fmt(loner_warmup)}]
     _sims[loner_race["id"]] = CompetitorSim(
         race_id=loner_race["id"],
         personal_pace=loner_pace,
         next_lap_at=now + loner_warmup + loner_pace,
         elapsed_race_time=loner_warmup,
-        laps_done=len(loner_race["laps"]) - 1,
+        laps_done=0,
     )
 
     log.info(
@@ -261,8 +262,8 @@ async def _simulation_loop() -> None:
 async def lifespan(_app: FastAPI):
     task = asyncio.create_task(_simulation_loop())
     log.info(
-        "Simulator ready — tick=%.1fs, lap_range=%.0f–%.0fs, noise=±%.0fs, max_laps=%d",
-        TICK_INTERVAL, LAP_MIN, LAP_MAX, LAP_NOISE, MAX_LAPS,
+        "Simulator ready — tick=%.1fs, warmup=%.0f–%.0fs, lap_range=%.0f–%.0fs, noise=±%.0fs, max_laps=%d",
+        TICK_INTERVAL, WARMUP_MIN, WARMUP_MAX, LAP_MIN, LAP_MAX, LAP_NOISE, MAX_LAPS,
     )
     yield
     task.cancel()

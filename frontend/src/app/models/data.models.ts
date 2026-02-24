@@ -1,88 +1,91 @@
-export interface Competitor {
+// ── Backend WebSocket message shapes ─────────────────────────────────────────
+
+/** distance_meta message payload */
+export interface DistanceMeta {
   id: string;
   name: string;
-  startNumber: string;
+  event_number: number;
+  is_live: boolean;
+  is_mass_start: boolean;
+  distance_meters: number | null;
+  total_laps: number | null;
+  any_finished: boolean;
+  finishing_line_after: string | null;
+  standings_groups: StandingsGroupMeta[];
+  heat_groups: HeatGroupMeta[];
 }
 
-export interface Lap {
-  time: string;
-  lapTime?: string; // Additional field might be present
+/** One group entry inside distance_meta.standings_groups */
+export interface StandingsGroupMeta {
+  group_number: number;
+  laps: number;
+  leader_time: string | null;
+  gap_to_group_ahead: string | null;
+  time_behind_leader: string | null;
+  is_last_group: boolean;
+  race_ids: string[];
 }
 
-export interface Race {
-  id: string;
+/** One heat entry inside distance_meta.heat_groups */
+export interface HeatGroupMeta {
   heat: number;
-  lane: string; // "RED", "BLUE", "YELLOW", "GREEN"
-  competitor: Competitor;
-  laps: Lap[];
+  race_ids: string[];
 }
 
-export interface Distance {
+/** competitor_update message payload */
+export interface CompetitorUpdate {
+  id: string;
+  distance_id: string;
+  start_number: string;
+  name: string;
+  heat: number;
+  lane: string;
+  laps_count: number;
+  total_time: string;
+  formatted_total_time: string;
+  position: number;
+  position_change: 'up' | 'down' | null;
+  gap_to_above: string | null;
+  laps_remaining: number | null;
+  is_final_lap: boolean;
+  finished_rank: number | null;
+  group_number: number | null;
+  /** Set by frontend on receive for flash-update animation */
+  lastUpdated?: number;
+}
+
+// ── Frontend view state ───────────────────────────────────────────────────────
+
+/** Full local state for one distance, assembled from backend messages */
+export interface ProcessedDistance {
   id: string;
   name: string;
   eventNumber: number;
   isLive: boolean;
-  races: Race[];
+  isMassStart: boolean;
+  distanceMeters: number | null;
+  totalLaps: number | null;
+  anyFinished: boolean;
+  finishingLineAfter: string | null;
+  /** Ordered list of competitor ids (sorted by backend: laps desc, time asc) */
+  processedRaces: CompetitorUpdate[];
+  standingsGroups: StandingsGroup[];
+  heatGroups: HeatGroup[];
 }
 
-export interface LiveData {
-  success?: boolean;
-  name: string;
-  distances: Distance[];
+/** Resolved standings group for rendering (races populated from competitor map) */
+export interface StandingsGroup {
+  groupNumber: number;
+  laps: number;
+  leaderTime: string | null;
+  gapToGroupAhead: string | null;
+  timeBehindLeader: string | null;
+  isLastGroup: boolean;
+  races: CompetitorUpdate[];
 }
 
-export interface ProcessedRace {
-  id: string;
-  competitorName: string;
-  startNumber: string;
-  lane: string;
-  heat: number;
-  lapsCount: number;
-  totalTime: string;
-  formattedTotalTime: string;
-  lapTimes: string[];
-  lastUpdated: number;
-  /** Gap to the competitor directly above in a standings group, e.g. "+0.456" */
-  gapToAbove?: string;
-  /** Position change vs previous update: 'up' | 'down' | null */
-  positionChange?: 'up' | 'down' | null;
-  /** Laps remaining until totalLaps, if known */
-  lapsRemaining?: number;
-  /** True when exactly 1 lap remains */
-  isFinalLap?: boolean;
-  /** 1-based finishing rank among completed competitors (lapsRemaining === 0), or undefined */
-  finishedRank?: number;
-}
-
+/** Resolved heat group for rendering */
 export interface HeatGroup {
   heat: number;
-  races: ProcessedRace[];
-}
-
-export interface ProcessedDistance extends Distance {
-  isMassStart: boolean;
-  processedRaces: ProcessedRace[];
-  distanceMeters?: number;
-  totalLaps?: number;
-  heatGroups?: HeatGroup[];
-  standingsGroups?: StandingsGroup[];
-  /** Race id after which to render the finishing line (last updated race this tick) */
-  finishingLineAfter?: string | null;
-  /** True once at least one competitor has finished (lapsRemaining === 0) */
-  anyFinished?: boolean;
-}
-
-export interface StandingsGroup {
-  laps: number;
-  races: ProcessedRace[];
-  /** 1-based group number; 1 = head of race */
-  groupNumber: number;
-  /** Formatted time of the first competitor (leader of this group) */
-  leaderTime?: string;
-  /** Gap from first of this group to last of the group directly ahead, e.g. "+5.234s" */
-  gapToGroupAhead?: string;
-  /** Total time behind the overall race leader (first of first group), e.g. "+12.345s" */
-  timeBehindLeader?: string;
-  /** True for the tail group (highest groupNumber) — merges into the group ahead */
-  isLastGroup?: boolean;
+  races: CompetitorUpdate[];
 }
