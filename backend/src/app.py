@@ -126,6 +126,7 @@ def _process(raw: dict) -> dict:
                 formatted_total_time = _format_time(total_time)
 
             lane = "black" if is_mass_start else (race.get("lane") or "black")
+            lap_times = [lap.get("lapTime", "") for lap in laps]
 
             processed.append({
                 "start_number": race["competitor"]["startNumber"],
@@ -137,6 +138,7 @@ def _process(raw: dict) -> dict:
                 "heat": race["heat"],
                 "lane": lane,
                 "formatted_total_time": formatted_total_time,
+                "lap_times": lap_times,
                 "laps_remaining": None,
                 "finished_rank": None,
             })

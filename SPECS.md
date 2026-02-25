@@ -36,7 +36,7 @@ Each component:
 - [x] `status`: connection metadata (`data_source_url`, `data_source_interval`)
 - [x] `error`: human-readable error string
 - [x] `distance_meta`: per-distance scalar fields (`id`, `name`, `event_number`, `is_live`, `is_mass_start`, `distance_meters`, `total_laps`, `any_finished`, `heat_groups`); no standings groups; `finishing_line_after` is not used — computed in frontend
-- [x] `competitor_update`: one message per changed competitor; fields: `start_number`, `laps_count`, `total_time`, `distance_id`, `id`, `name`, `heat`, `lane`, `formatted_total_time`, `laps_remaining`, `finished_rank`; `position` and `position_change` are not sent — computed in frontend; **not sent when `total_time` is empty after the initial appearance** — first appearance (start list) is always sent regardless
+- [x] `competitor_update`: one message per changed competitor; fields: `start_number`, `laps_count`, `total_time`, `distance_id`, `id`, `name`, `heat`, `lane`, `formatted_total_time`, `lap_times` (list of `lapTime` strings for each completed lap, in order), `laps_remaining`, `finished_rank`; `position` and `position_change` are not sent — computed in frontend; **not sent when `total_time` is empty after the initial appearance** — first appearance (start list) is always sent regardless
 - [x] On each fetch cycle: send one `distance_meta` per changed distance, then one `competitor_update` per changed competitor
 
 ## Frontend
@@ -104,6 +104,16 @@ Each component:
 - [x] Python 3.14 + FastAPI; mirror src into container; ruff formatting
 - [x] Do not alter/remove `example.json`
 - [x] Simulate mass start live distance from `example.json`
+- [x] Simulate four non-mass-start distances: **100m**, **500m**, **1000m**, **1500m**; all run live simultaneously alongside the mass start
+  - 100m: start 100m before finish line → first (and only) lap = 100m; subsequent laps = 400m each
+  - 500m: start 100m before finish line → first (and only) lap = 500m; subsequent laps = 400m each
+  - 1000m: start 200m before finish line → first (and only) lap = 1000m; subsequent laps = 400m each
+  - 1500m: start 300m before finish line → first (and only) lap = 1500m; subsequent laps = 400m each
+  - All four defined distances finish after the first lap (single-lap sprint); lap_meters=400 is retained for future multi-lap distance definitions
+- [x] Non-mass distances: 2–4 heats of 2–4 competitors each with assigned lane colors; all distances start simultaneously at init/reset
+- [x] Non-mass competitors: each has a stable personal speed (m/s) with per-lap noise; lap split time computed from distance ÷ speed
+- [x] Non-mass distances marked `isLive=False` once all competitors in that distance finish
+- [x] All other distances from `example.json` are **not** included in the simulated output — only the mass-start distance and the four non-mass-start distances above
 - [x] On init/reset: clear all existing laps; seed each competitor with a single warmup lap (lap 0) taking 10–15s; race starts at lap 0
 - [x] Each competitor has a stable personal pace with per-lap noise
 - [x] Competitors complete laps independently based on pace
