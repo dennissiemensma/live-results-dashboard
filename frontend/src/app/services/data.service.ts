@@ -19,7 +19,9 @@ export interface DebugEntry {
   name: string;
   startNumber: string;
   distanceId: string;
+  distanceName: string;
   lapsCount: number;
+  currentLapTime: string;
   formattedTotalTime: string;
 }
 
@@ -288,12 +290,18 @@ export class DataService {
     // Append to debug log
     const debugLog = this._debugLog.value;
     if (debugLog.length >= MAX_DEBUG_ENTRIES) debugLog.splice(0, debugLog.length - MAX_DEBUG_ENTRIES);
+    const distName = this.distanceMap.get(comp.distance_id)?.name ?? comp.distance_id;
+    const currentLapTime = comp.lap_times?.length
+      ? comp.lap_times[comp.lap_times.length - 1]
+      : '';
     debugLog.push({
       timestamp: Date.now(),
       name: comp.name,
       startNumber: comp.start_number,
       distanceId: comp.distance_id,
+      distanceName: distName,
       lapsCount: comp.laps_count,
+      currentLapTime,
       formattedTotalTime: comp.formatted_total_time,
     });
     this._debugLog.next(debugLog);

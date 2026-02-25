@@ -61,19 +61,20 @@
 }
 .debug-row {
   display: grid;
-  grid-template-columns: 9rem 6rem 3.5rem 1fr 5rem 6rem;
-  gap: 0 0.75rem;
-  padding: 0.1em 0;
+  grid-template-columns: 8rem 2fr 3rem 3fr 5rem 7rem 7rem;
+  gap: 0 1rem;
+  padding: 0.1em 1.5rem 0.1em 0;
   border-bottom: 1px solid #21262d;
   align-items: baseline;
   &:last-child { border-bottom: none; }
 }
-.debug-ts   { color: #8b949e; white-space: nowrap; }
-.debug-dist { color: #58a6ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.debug-num  { color: #d29922; font-weight: 600; }
-.debug-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.debug-laps { color: #8b949e; }
-.debug-time { color: #3fb950; text-align: right; }
+.debug-ts      { color: #8b949e; white-space: nowrap; }
+.debug-dist    { color: #79c0ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.debug-num     { color: #ffa657; font-weight: 600; }
+.debug-name    { color: #e6edf3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.debug-laps    { color: #8b949e; }
+.debug-laptime { color: #a5d6ff; font-variant-numeric: tabular-nums; }
+.debug-time    { color: #3fb950; font-variant-numeric: tabular-nums; }
 // ===== ANIMATIONS =====
 @keyframes flashYellow {
   0%   { background-color: #fff3cd; }
