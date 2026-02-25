@@ -30,6 +30,8 @@ export interface CompetitorUpdate {
   laps_count: number;
   total_time: string;
   formatted_total_time: string;
+  /** List of lapTime strings for each completed lap, in order; populated by backend on every update and full replay */
+  lap_times: string[];
   laps_remaining: number | null;
   finished_rank: number | null;
   /** Computed by frontend: laps_remaining === 1 */

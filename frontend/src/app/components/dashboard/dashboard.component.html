@@ -163,7 +163,7 @@
                           <div [@raceList]="raceListKey(heatGroup.races)">
                             @for (race of heatGroup.races; track race.id) {
                               <div
-                                class="race-item d-flex justify-content-between align-items-center p-2 mb-1 rounded"
+                                class="race-item d-flex align-items-center p-2 mb-1 rounded"
                                 [class.flash-update]="isRecentUpdate(race.lastUpdated)"
                                 [class.pos-up]="race.position_change === 'up'"
                                 [class.pos-down]="race.position_change === 'down'"
@@ -178,13 +178,13 @@
                                   >{{ padStartNumber(race.start_number) }}</c-badge>
                                   <span>{{ race.name }}</span>
                                 </div>
-                                <div class="d-flex align-items-center gap-2">
-                                  <c-badge color="secondary">{{ race.laps_count }} lap{{ race.laps_count !== 1 ? 's' : '' }}</c-badge>
+                                <div class="d-flex align-items-center gap-2 ms-auto">
                                   @if (race.formatted_total_time && race.formatted_total_time !== 'No Time') {
                                     <span class="race-time">{{ splitFormattedTime(race.formatted_total_time)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formatted_total_time)[1] }}</small></span>
                                   } @else {
                                     <span class="text-muted small">No Time</span>
                                   }
+                                  <c-badge color="secondary" class="laps-badge">{{ race.laps_count }}</c-badge>
                                 </div>
                               </div>
                             }
