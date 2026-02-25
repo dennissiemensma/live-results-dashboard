@@ -192,11 +192,13 @@
 // new position, and the row moving down slides from above its new position.
 // This creates the visual effect of the two rows passing each other.
 @keyframes swapUp {
-  0%   { transform: translateY(var(--row-height, 2.5rem)); }
+  /* start slightly below and slide up into place */
+  0%   { transform: translateY(2.5rem); }
   100% { transform: translateY(0); }
 }
 @keyframes swapDown {
-  0%   { transform: translateY(calc(-1 * var(--row-height, 2.5rem))); }
+  /* start slightly above and slide down into place */
+  0%   { transform: translateY(-2.5rem); }
   100% { transform: translateY(0); }
 }
 .pos-up {
@@ -259,14 +261,14 @@
 .race-item-group {
   border: 1px solid transparent;
 }
-// Mass-start row with lap badges: 4-part flex layout
-// [left: name grows] [lap-counter: fixed] [lap-strip: centre, grows] [right: fixed]
+// Mass-start row with lap badges
 .race-item-laps {
+  display: flex;
+  align-items: center;
   border: 1px solid rgba(0,0,0,0.05);
   cursor: pointer;
   transition: outline 0.1s;
   gap: 0.5rem;
-  align-items: center; // row-level vertical centering
 }
 // Left column: fixed width so all badge strips start at the same horizontal offset
 .race-item-left {
@@ -277,87 +279,100 @@
   align-items: center;
   gap: 0.5rem;
 }
-// Competitor name: allow up to 18rem, truncate beyond
+// Competitor name: truncate beyond fixed width
 .race-name-fixed {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 10rem;
 }
-// Lap counter: plain text after the badge strip (no badge styling)
+// Lap counter: plain text after the badge strip
 .laps-counter-text {
-  font-size: 0.7em;
+  font-size: 0.75rem;
   font-family: monospace;
   font-variant-numeric: tabular-nums;
   color: #6c757d;
   white-space: nowrap;
   flex-shrink: 0;
-  margin-left: 0.35rem;
+  line-height: 1;
 }
 .laps-counter-total {
   opacity: 0.6;
 }
-// Scrollable strip of lap time badges — left-aligned so all rows start at the same offset
+// Scrollable strip of lap time badges — centred
 .lap-times-strip {
+  /* Left-align badges so they start at a fixed offset (vertical alignment across rows) */
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 0.2rem;
+  justify-content: flex-start; /* align badges to the left edge of the centre column */
+  gap: 0.12rem; /* very small gap - single whitespace feel */
   flex: 1 1 0;
   min-width: 0;
   overflow-x: auto;
-  padding: 0 0.25rem;
+  padding: 0 0.75rem 0 0.9rem; /* ensure consistent left offset from name column */
   scrollbar-width: none;
   &::-webkit-scrollbar { display: none; }
 }
-// Individual lap time badge
+
+/* Smaller lap time badges to reduce visual weight */
 .lap-time-badge {
   display: inline-flex;
   align-items: center;
-  font-size: 0.68em;
+  justify-content: center;
+  font-size: 0.72rem; /* reduced */
+  line-height: 1;
   font-family: monospace;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  padding: 0.1em 0.4em;
-  border-radius: 0.25rem;
+  padding: 0.14em 0.32em; /* tighter padding for compact badges */
+  border-radius: 0.22rem;
   flex-shrink: 0;
-  opacity: 0.35;
+  opacity: 1;
+  min-width: 2.6rem; /* reduced fixed width */
+  text-align: center;
+
   &.lap-badge-normal { background: #198754; color: #fff; }
   &.lap-badge-slow   { background: #fd7e14; color: #fff; }
   &.lap-badge-fast   { background: #6f42c1; color: #fff; }
+
   &.lap-badge-latest {
     opacity: 1;
-    animation: lapPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    animation: lapPop 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
   }
   &.lap-badge-prev,
   &.lap-badge-old {
     opacity: 0.35;
   }
+
+  /* Decimal as superscript-like text (smaller) */
+  .lap-time-decimal {
+    display: inline-block;
+    font-size: 0.5em; /* smaller superscript */
+    vertical-align: super;
+    line-height: 1;
+    margin-left: 0.04ch;
+    opacity: 0.95;
+    transform: translateY(-0.04em);
+  }
 }
-// Smaller decimal part inside a lap time badge
-.lap-time-decimal {
-  font-size: 0.78em;
-  opacity: 0.75;
-}
-// Smaller decimal part inside a lap time badge
+
+/* Placeholder badge — identical sizing to real lap-time-badge so width/height match exactly */
 .lap-time-placeholder {
-  background: #dee2e6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem; /* match .lap-time-badge */
+  line-height: 1;
+  font-family: monospace;
+  font-variant-numeric: tabular-nums;
+  padding: 0.14em 0.32em; /* match .lap-time-badge */
+  border-radius: 0.22rem;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, #e9ecef 25%, #f3f5f6 50%, #e9ecef 75%);
   color: transparent;
   opacity: 1 !important;
-  min-width: 3.2em;
-  padding: 0.1em 0.4em;
   animation: lapPlaceholderPulse 1.4s ease-in-out infinite;
-  &::before { content: '00.0'; visibility: hidden; }
-}
-@keyframes lapPlaceholderPulse {
-  0%, 100% { opacity: 0.35; }
-  50%       { opacity: 0.75; }
-}
-@keyframes lapPop {
-  0%   { opacity: 0; transform: scale(0.5); }
-  50%  { opacity: 1; transform: scale(1.2); }
-  75%  { transform: scale(0.95); }
-  100% { opacity: 1; transform: scale(1); }
+  min-width: 2.6rem; /* match .lap-time-badge */
 }
 // Selected state — distinct border + tinted background
 .race-selected {
@@ -367,7 +382,35 @@
 }
 // Finished competitors — dimmed
 .race-finished {
-  opacity: 0.45;
+  /* Dim finished rows by reducing opacity on textual elements only. */
+}
+
+/* Targeted dimming: only reduce opacity of text/labels so badges retain their colors. */
+.race-finished .race-name-fixed,
+.race-finished .rank-label,
+.race-finished .laps-counter-text,
+.race-finished .laps-counter-total,
+.race-finished .timed-lap-dist,
+.race-finished .timed-lap-time,
+.race-finished .timed-lap-time-group,
+.race-finished .timed-comp-name,
+.race-finished .timed-comp-header,
+.race-finished .timed-comp-body,
+.race-finished .race-time,
+.race-finished .standings-gap-label {
+  opacity: 0.85 !important; /* milder dimming so timed-distance content remains readable */
+}
+
+/* Keep badges fully visible and colored */
+.race-finished .lap-time-badge,
+.race-finished .lap-time-placeholder,
+.race-finished .start-num-badge,
+.race-finished .timed-pr-badge,
+.race-finished .timed-pb-diff-badge,
+.race-finished .final-lap-badge {
+  opacity: 0.85 !important;
+  filter: none !important;
+  position: relative;
 }
 // ===== TIMED DISTANCES =====
 // Plain heat row — no border/background, just a label + cards below
@@ -449,15 +492,28 @@
 }
 // Opaque gray split-time badge prepended before the cumulative time in timed lap rows
 .timed-split-badge {
-  font-size: 0.62em !important;
-  font-family: monospace;
+  /* align closely with the personal-best badge sizing & feel */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6em; /* match .timed-pr-badge */
+  line-height: 1;
+  font-family: inherit;
   font-variant-numeric: tabular-nums;
-  background-color: rgba(0,0,0,0.12) !important;
-  color: #6c757d !important;
-  flex-shrink: 0;
   white-space: nowrap;
-  padding: 0.1em 0.35em !important;
-  opacity: 1;
+  padding: 0.18em 0.4em; /* slightly tighter than lap-time-badge */
+  border-radius: 0.25rem;
+  background-color: rgba(0,0,0,0.08); /* soft gray */
+  color: #6c757d; /* preserved gray text */
+  flex-shrink: 0;
+  height: auto;
+  min-height: 1.6rem;
+}
+
+.timed-split-badge .time-decimal {
+  font-size: 0.72em; /* smaller decimal inside the split badge */
+  opacity: 0.85;
+  color: #6c757d;
 }
 // PB card: golden left border only
 .timed-competitor-card.timed-pr {
@@ -712,3 +768,11 @@
   border: 1px solid #dee2e6;
 }
 .skeleton-accordion-header { border-bottom: 1px solid #dee2e6; }
+
+// Force line-height: 1 on all relevant containers for perfect vertical alignment of lap time badges and placeholders.
+.race-item-laps,
+.lap-times-strip,
+.lap-time-badge,
+.lap-time-placeholder {
+  line-height: 1;
+}
