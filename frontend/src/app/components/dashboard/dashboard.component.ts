@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Title } from '@angular/platform-browser';
-import { DataService } from '../../services/data.service';
+import { DataService, DebugEntry } from '../../services/data.service';
 import { ProcessedDistance, StandingsGroup, CompetitorUpdate } from '../../models/data.models';
 import { Observable, combineLatest, timer, map, Subscription } from 'rxjs';
 import {
@@ -82,6 +82,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   liveEventNumber: number | null = null;
   pulseActive = false;
   selectedRaceId: string | null = null;
+  debugVisible = false;
+  debugLog$: Observable<DebugEntry[]>;
+
+  toggleDebug(): void {
+    this.debugVisible = !this.debugVisible;
+  }
 
 
   selectRace(id: string): void {
@@ -107,6 +113,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.eventName$ = this.dataService.eventName$;
     this.errors$ = this.dataService.errors$;
     this.displayedGroups$ = this.dataService.displayedGroups$;
+    this.debugLog$ = this.dataService.debugLog$;
 
     this.sortedDistances$ = this.dataService.processedData$.pipe(
       map((distances) => {
@@ -212,6 +219,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (group.isOthers) return 'Tail of the race';
     if (isFirst && !anyFinished) return 'Head of the race';
     return 'Group ' + group.groupNumber;
+  }
+
+  formatDebugTime(ts: number): string {
+    const d = new Date(ts);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    const ms = String(d.getMilliseconds()).padStart(3, '0');
+    return `${hh}:${mm}:${ss}.${ms}`;
   }
 
   /**

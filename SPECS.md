@@ -95,9 +95,10 @@ Each component:
 - [x] Time: decimals in small gray
 - [x] Animate row background to light yellow on update for 1s **only when the competitor received an actual backend update**; no highlight on restore or group recompute
 - [x] On each competitor update: (1) recompute positions and resort `processedRaces` immediately; (2) flash-highlight the updated row at its new sorted position for 1s; (3) show the finishing line below that row for the same 1s; the deferred sort is removed — sorting always happens before the highlight, never after
-- [x] Finishing line: rendered as an **inline DOM element** in the list flow, below the competitor currently at `finishingLineAfter`; styled as a solid 3px bright orange line with a small "Lap completed" label; `finishingLineAfter` is set to the id of the most recently updated competitor after the list has been resorted; it is cleared automatically after 1s; never shown in more than one place at a time
+- [x] Finishing line: rendered as an **inline DOM element** in the list flow, below the competitor currently at `finishingLineAfter`; styled as a solid 3px bright orange line with a small "Lap completed" label; `finishingLineAfter` is set to the id of the most recently updated competitor after the list has been resorted; it **persists** at that position until a new competitor update moves it; never shown in more than one place at a time
 - [x] Group separator lines with group name; styled as a thin 1px gray line; small top margin above each group divider; a gray transparent count badge (competitor count) and an orange gap badge (`+Xs` / `+X lap(s)`, same value as the group card header gap) are rendered inline after the group name on the separator line; head group shows no gap badge
 - [x] Click to select competitor; reflected in both strip and standings; click again/elsewhere to deselect
+- [x] Debug view: a toggleable panel (e.g. toggled by a button in the top bar) that lists incoming `competitor_update` messages in arrival order; each entry shows: arrival timestamp, competitor name, start number, distance id, laps count, and formatted total time; capped at a configurable maximum number of entries (e.g. last 200); does not affect normal rendering or data flow
 
 ## Mockserver
 - [x] Python 3.14 + FastAPI; mirror src into container; ruff formatting

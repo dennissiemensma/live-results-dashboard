@@ -32,6 +32,48 @@
   color: #fff;
   &:focus { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.5); color: #fff; box-shadow: none; }
 }
+.debug-toggle-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.6);
+  font-size: 0.75rem;
+  padding: 0.2em 0.7em;
+  border-radius: 0.3em;
+  &:hover { background: rgba(255,255,255,0.14); color: #fff; }
+  &.active { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.5); color: #fff; }
+}
+// ===== DEBUG PANEL =====
+.debug-panel {
+  background: #0d1117;
+  border-bottom: 1px solid #30363d;
+  color: #c9d1d9;
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+.debug-header {
+  color: #8b949e;
+}
+.debug-list {
+  max-height: 22rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.debug-row {
+  display: grid;
+  grid-template-columns: 9rem 6rem 3.5rem 1fr 5rem 6rem;
+  gap: 0 0.75rem;
+  padding: 0.1em 0;
+  border-bottom: 1px solid #21262d;
+  align-items: baseline;
+  &:last-child { border-bottom: none; }
+}
+.debug-ts   { color: #8b949e; white-space: nowrap; }
+.debug-dist { color: #58a6ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.debug-num  { color: #d29922; font-weight: 600; }
+.debug-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.debug-laps { color: #8b949e; }
+.debug-time { color: #3fb950; text-align: right; }
 // ===== ANIMATIONS =====
 @keyframes flashYellow {
   0%   { background-color: #fff3cd; }

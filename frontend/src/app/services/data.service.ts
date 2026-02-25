@@ -14,12 +14,22 @@ export interface BackendStatus {
   interval: number | null;
 }
 
+export interface DebugEntry {
+  timestamp: number;
+  name: string;
+  startNumber: string;
+  distanceId: string;
+  lapsCount: number;
+  formattedTotalTime: string;
+}
+
 const RENDER_INTERVAL_MS = 250;
 const DEFAULT_GROUP_THRESHOLD = 2.0;
 const MAX_GROUP_THRESHOLD = 10.0;
 const DEFAULT_MAX_GROUPS = 4;
 const STORAGE_KEY_THRESHOLD = 'groupThresholdSec';
 const STORAGE_KEY_MAX_GROUPS = 'maxGroups';
+const MAX_DEBUG_ENTRIES = 200;
 
 @Injectable({ providedIn: 'root' })
 export class DataService {
@@ -36,14 +46,14 @@ export class DataService {
   public errors$ = this._errors.asObservable();
   private _lastDataReceived = new BehaviorSubject<number>(0);
   public lastDataReceived$ = this._lastDataReceived.asObservable();
+  private _debugLog = new BehaviorSubject<DebugEntry[]>([]);
+  public debugLog$ = this._debugLog.asObservable();
   private _groupThreshold = new BehaviorSubject<number>(this._loadThreshold());
   public groupThreshold$ = this._groupThreshold.asObservable();
 
   private _displayedGroups = new BehaviorSubject<Map<string, StandingsGroup[]>>(new Map());
   public displayedGroups$ = this._displayedGroups.asObservable();
   private _groupDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  /** Timers that clear finishingLineAfter after the 1s highlight duration */
-  private _finishingLineTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   private _maxGroups = new BehaviorSubject<number>(this._loadMaxGroups());
   public maxGroups$ = this._maxGroups.asObservable();
@@ -245,19 +255,8 @@ export class DataService {
       this._recomputePositions(distComps);
       dist.processedRaces = Array.from(distComps.values()).sort((a, b) => a.position - b.position);
 
-      // Set finishing line to this competitor, clear after 1s
+      // Set finishing line to this competitor; persists until the next update moves it
       dist.finishingLineAfter = comp.id;
-      const existingTimer = this._finishingLineTimers.get(comp.distance_id);
-      if (existingTimer) clearTimeout(existingTimer);
-      const clearTimer = setTimeout(() => {
-        this._finishingLineTimers.delete(comp.distance_id);
-        const d = this.distanceMap.get(comp.distance_id);
-        if (d) {
-          d.finishingLineAfter = null;
-          this.ngZone.run(() => this._publishState());
-        }
-      }, 1000);
-      this._finishingLineTimers.set(comp.distance_id, clearTimer);
 
       if (dist.isMassStart) {
         this._recomputeGroups(dist);
@@ -273,6 +272,20 @@ export class DataService {
       comp.is_final_lap = false;
       distComps.set(comp.id, comp);
     }
+
+    // Append to debug log
+    const debugLog = this._debugLog.value;
+    if (debugLog.length >= MAX_DEBUG_ENTRIES) debugLog.splice(0, debugLog.length - MAX_DEBUG_ENTRIES);
+    debugLog.push({
+      timestamp: Date.now(),
+      name: comp.name,
+      startNumber: comp.start_number,
+      distanceId: comp.distance_id,
+      lapsCount: comp.laps_count,
+      formattedTotalTime: comp.formatted_total_time,
+    });
+    this._debugLog.next(debugLog);
+
     return true;
   }
 

@@ -40,6 +40,12 @@
         [value]="dataService.maxGroups"
         (change)="onMaxGroupsChange($event)"
       />
+      <button
+        class="btn btn-sm ms-3 debug-toggle-btn"
+        [class.active]="debugVisible"
+        (click)="toggleDebug()"
+        title="Toggle debug view"
+      >Debug</button>
     </div>
   </header>
   <!-- ===== ERRORS ===== -->
@@ -50,6 +56,28 @@
       </c-alert>
     }
   </div>
+  <!-- ===== DEBUG PANEL ===== -->
+  @if (debugVisible) {
+    @let log = (debugLog$ | async) ?? [];
+    <div class="debug-panel px-4 pt-2 pb-2">
+      <div class="debug-header d-flex align-items-center gap-2 mb-1">
+        <span class="fw-bold small">Debug — competitor updates</span>
+        <span class="text-muted small">({{ log.length }} entries, latest last)</span>
+      </div>
+      <div class="debug-list">
+        @for (entry of log; track $index) {
+          <div class="debug-row">
+            <span class="debug-ts">{{ formatDebugTime(entry.timestamp) }}</span>
+            <span class="debug-dist text-muted">{{ entry.distanceId }}</span>
+            <span class="debug-num">#{{ entry.startNumber }}</span>
+            <span class="debug-name">{{ entry.name }}</span>
+            <span class="debug-laps text-muted">{{ entry.lapsCount }} lap{{ entry.lapsCount !== 1 ? 's' : '' }}</span>
+            <span class="debug-time">{{ entry.formattedTotalTime || '—' }}</span>
+          </div>
+        }
+      </div>
+    </div>
+  }
   <!-- ===== MAIN CONTENT ===== -->
   <main class="flex-grow-1 px-4 pb-4">
     @if ((sortedDistances$ | async)?.length) {
