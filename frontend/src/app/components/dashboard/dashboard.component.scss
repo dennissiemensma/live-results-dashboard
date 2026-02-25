@@ -25,6 +25,23 @@
   background-color: #000;
   min-height: 3rem;
 }
+// Section label before the settings group
+.topbar-section-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.35);
+  white-space: nowrap;
+}
+// Vertical separator after the section label
+.topbar-section-sep {
+  width: 1px;
+  height: 1.2rem;
+  background: rgba(255,255,255,0.2);
+  flex-shrink: 0;
+  margin: 0 0.25rem;
+}
 .threshold-input {
   width: 4.5rem;
   background: rgba(255,255,255,0.1);
@@ -41,6 +58,93 @@
   border-radius: 0.3em;
   &:hover { background: rgba(255,255,255,0.14); color: #fff; }
   &.active { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.5); color: #fff; }
+}
+// ===== SETTING GROUP POPOVER =====
+.setting-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.setting-label {
+  // no special cursor
+}
+.setting-popover-example {
+  border-top: 1px solid rgba(0,0,0,0.07);
+  color: #6c757d;
+  font-style: italic;
+}
+// Inline color badges inside popover description text
+.popover-badge {
+  display: inline-block;
+  font-size: 0.75em;
+  font-weight: 600;
+  padding: 0.05em 0.4em;
+  border-radius: 0.25rem;
+  color: #fff;
+  vertical-align: baseline;
+  &.popover-badge-green  { background: #198754; }
+  &.popover-badge-orange { background: #fd7e14; }
+  &.popover-badge-purple { background: #6f42c1; }
+}
+.threshold-checkbox {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  accent-color: #0d6efd;
+}
+.setting-popover {
+  display: none;
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1080;
+  min-width: 14rem;
+  max-width: 20rem;
+  background: #fff;
+  color: #212529;
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+  padding: 0;
+  pointer-events: none;
+  // arrow pointing up
+  &::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 6px solid rgba(0,0,0,0.15);
+  }
+  &::after {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 6px solid #fff;
+  }
+}
+.setting-popover-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.4rem 0.6rem 0.25rem;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+.setting-popover-body {
+  font-size: 0.73rem;
+  line-height: 1.45;
+  padding: 0.3rem 0.6rem 0.4rem;
+  color: #495057;
+}
+.setting-group:hover .setting-popover {
+  display: block;
 }
 // ===== DEBUG PANEL =====
 .debug-panel {
@@ -155,6 +259,106 @@
 .race-item-group {
   border: 1px solid transparent;
 }
+// Mass-start row with lap badges: 4-part flex layout
+// [left: name grows] [lap-counter: fixed] [lap-strip: centre, grows] [right: fixed]
+.race-item-laps {
+  border: 1px solid rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: outline 0.1s;
+  gap: 0.5rem;
+  align-items: center; // row-level vertical centering
+}
+// Left column: fixed width so all badge strips start at the same horizontal offset
+.race-item-left {
+  flex: 0 0 16rem;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+// Competitor name: allow up to 18rem, truncate beyond
+.race-name-fixed {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 10rem;
+}
+// Lap counter: plain text after the badge strip (no badge styling)
+.laps-counter-text {
+  font-size: 0.7em;
+  font-family: monospace;
+  font-variant-numeric: tabular-nums;
+  color: #6c757d;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 0.35rem;
+}
+.laps-counter-total {
+  opacity: 0.6;
+}
+// Scrollable strip of lap time badges — left-aligned so all rows start at the same offset
+.lap-times-strip {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.2rem;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 0 0.25rem;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+// Individual lap time badge
+.lap-time-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68em;
+  font-family: monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 0.1em 0.4em;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+  opacity: 0.35;
+  &.lap-badge-normal { background: #198754; color: #fff; }
+  &.lap-badge-slow   { background: #fd7e14; color: #fff; }
+  &.lap-badge-fast   { background: #6f42c1; color: #fff; }
+  &.lap-badge-latest {
+    opacity: 1;
+    animation: lapPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  }
+  &.lap-badge-prev,
+  &.lap-badge-old {
+    opacity: 0.35;
+  }
+}
+// Smaller decimal part inside a lap time badge
+.lap-time-decimal {
+  font-size: 0.78em;
+  opacity: 0.75;
+}
+// Smaller decimal part inside a lap time badge
+.lap-time-placeholder {
+  background: #dee2e6;
+  color: transparent;
+  opacity: 1 !important;
+  min-width: 3.2em;
+  padding: 0.1em 0.4em;
+  animation: lapPlaceholderPulse 1.4s ease-in-out infinite;
+  &::before { content: '00.0'; visibility: hidden; }
+}
+@keyframes lapPlaceholderPulse {
+  0%, 100% { opacity: 0.35; }
+  50%       { opacity: 0.75; }
+}
+@keyframes lapPop {
+  0%   { opacity: 0; transform: scale(0.5); }
+  50%  { opacity: 1; transform: scale(1.2); }
+  75%  { transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
 // Selected state — distinct border + tinted background
 .race-selected {
   outline: 2px solid #0d6efd !important;
@@ -243,6 +447,18 @@
   color: #fff !important;
   font-variant-numeric: tabular-nums;
 }
+// Opaque gray split-time badge prepended before the cumulative time in timed lap rows
+.timed-split-badge {
+  font-size: 0.62em !important;
+  font-family: monospace;
+  font-variant-numeric: tabular-nums;
+  background-color: rgba(0,0,0,0.12) !important;
+  color: #6c757d !important;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 0.1em 0.35em !important;
+  opacity: 1;
+}
 // PB card: golden left border only
 .timed-competitor-card.timed-pr {
   border-left: 3px solid #f9b115;
@@ -314,6 +530,12 @@
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+// When the laps badge lives inside the lap-times-strip: always full opacity, no animation
+.laps-badge-strip {
+  opacity: 1 !important;
+  animation: none !important;
   flex-shrink: 0;
 }
 .laps-total {

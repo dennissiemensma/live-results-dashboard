@@ -15,37 +15,89 @@
         [class.pulse-badge]="status.status === 'Connecting...'"
       >{{ status.status }}</c-badge>
     }
+    <!-- Show server updates button sits next to connection status -->
+    <div class="setting-group">
+      <button
+        class="btn btn-sm debug-toggle-btn"
+        [class.active]="debugVisible"
+        (click)="toggleDebug()"
+      >Show server updates</button>
+      <div class="setting-popover">
+        <div class="setting-popover-title">Show server updates</div>
+        <div class="setting-popover-body">Opens a live feed of every incoming competitor update from the backend, showing the distance, start number, competitor name, lap number, current lap time and total time. Useful for debugging data flow.</div>
+      </div>
+    </div>
     <span class="ms-2 small last-update" [class.pulse]="pulseActive">
       @if ((secondsSinceUpdate$ | async) !== 0) {
         Last change received: {{ secondsSinceUpdate$ | async }}s ago
       }
     </span>
-    <div class="d-flex align-items-center gap-1 ms-auto">
-      <label class="small text-white-50 text-nowrap mb-0" for="groupThresholdInput">Group gap</label>
-      <input
-        id="groupThresholdInput"
-        type="number"
-        min="0" max="10" step="0.5"
-        class="form-control form-control-sm threshold-input"
-        [value]="dataService.groupThreshold"
-        (change)="onThresholdChange($event)"
-      />
-      <span class="small text-white-50">s</span>
-      <label class="small text-white-50 text-nowrap mb-0 ms-2" for="maxGroupsInput">Max groups</label>
-      <input
-        id="maxGroupsInput"
-        type="number"
-        min="0" step="1"
-        class="form-control form-control-sm threshold-input"
-        [value]="dataService.maxGroups"
-        (change)="onMaxGroupsChange($event)"
-      />
-      <button
-        class="btn btn-sm ms-3 debug-toggle-btn"
-        [class.active]="debugVisible"
-        (click)="toggleDebug()"
-        title="Toggle server updates view"
-      >Show server updates</button>
+    <div class="d-flex align-items-center gap-2 ms-auto">
+      <!-- Section label + separator -->
+      <span class="topbar-section-label">Mass Start Settings</span>
+      <div class="topbar-section-sep"></div>
+      <div class="setting-group">
+        <label class="small text-white-50 text-nowrap mb-0 setting-label" for="groupThresholdInput">Max seconds gap between groups</label>
+        <input
+          id="groupThresholdInput"
+          type="number"
+          min="0" max="10" step="0.5"
+          class="form-control form-control-sm threshold-input"
+          [value]="dataService.groupThreshold"
+          (change)="onThresholdChange($event)"
+        />
+        <span class="small text-white-50">s</span>
+        <div class="setting-popover">
+          <div class="setting-popover-title">Max seconds gap between groups</div>
+          <div class="setting-popover-body">Minimum time difference (in seconds) between two competitors on the same lap for them to be placed in separate standings groups. Lower values create more groups; 0 puts every competitor in their own group.</div>
+        </div>
+      </div>
+      <div class="setting-group ms-2">
+        <label class="small text-white-50 text-nowrap mb-0 setting-label" for="maxGroupsInput">Max groups</label>
+        <input
+          id="maxGroupsInput"
+          type="number"
+          min="0" step="1"
+          class="form-control form-control-sm threshold-input"
+          [value]="dataService.maxGroups"
+          (change)="onMaxGroupsChange($event)"
+        />
+        <div class="setting-popover">
+          <div class="setting-popover-title">Max groups</div>
+          <div class="setting-popover-body">Maximum number of standings groups to display in the group strip. Competitors beyond the last group are collected into a "Tail of the race" group. Set to 0 to disable grouping entirely.</div>
+        </div>
+      </div>
+      <div class="setting-group ms-2">
+        <label class="small text-white-50 text-nowrap mb-0 setting-label" for="lapVarianceInput">Lap Δ</label>
+        <input
+          id="lapVarianceInput"
+          type="number"
+          min="0" max="50" step="1"
+          class="form-control form-control-sm threshold-input"
+          [value]="dataService.lapVarianceThreshold"
+          (change)="onLapVarianceChange($event)"
+        />
+        <span class="small text-white-50">%</span>
+        <div class="setting-popover">
+          <div class="setting-popover-title">Lap variance threshold</div>
+          <div class="setting-popover-body">Percentage difference between consecutive lap times used to colour lap badges. Within threshold → <span class="popover-badge popover-badge-green">green</span>. Slower by more than threshold → <span class="popover-badge popover-badge-orange">orange</span>. Faster by more than threshold → <span class="popover-badge popover-badge-purple">purple</span>.</div>
+          <div class="setting-popover-body setting-popover-example">E.g. at 5%: a previous lap of 30.0 s means slower &gt; 31.5 s turns orange, faster &lt; 28.5 s turns purple.</div>
+        </div>
+      </div>
+      <div class="setting-group ms-2">
+        <label class="small text-white-50 text-nowrap mb-0 setting-label" for="showLapTimesInput">Lap times</label>
+        <input
+          id="showLapTimesInput"
+          type="checkbox"
+          class="form-check-input threshold-checkbox"
+          [checked]="dataService.showMassStartLapTimes"
+          (change)="onShowLapTimesChange($event)"
+        />
+        <div class="setting-popover">
+          <div class="setting-popover-title">Show lap times</div>
+          <div class="setting-popover-body">Show or hide the lap time badge strip on each mass-start competitor row. Hiding lap times gives a cleaner view during busy races.</div>
+        </div>
+      </div>
     </div>
   </header>
   <!-- ===== ERRORS ===== -->
@@ -172,7 +224,7 @@
                                 [class.timed-pr]="race.is_personal_record"
                                 (click)="selectRace(race.id)"
                               >
-                              <!-- Card title: badge + name + Finished left; PB badge right -->
+                              <!-- Card title: badge + name + Finished left; PB + diff badges right -->
                               <div class="timed-comp-header">
                                 <c-badge
                                   class="start-num-badge"
@@ -185,28 +237,30 @@
                                 }
                                 @if (race.is_personal_record) {
                                   <c-badge color="warning" class="timed-pr-badge ms-auto">New personal best!</c-badge>
+                                  @let pbDiff = pbImprovement(race);
+                                  @if (pbDiff) {
+                                    <c-badge class="timed-pb-diff-badge">{{ pbDiff }}</c-badge>
+                                  }
                                 }
                               </div>
                               <!-- Card body: one row per lap distance -->
                               <div class="timed-comp-body">
-                                @for (lapDist of lapSchedule; track lapDist; let i = $index; let last = $last) {
-                                  @let lapTime = timedLapTime(race, i);
-                                  <div class="timed-lap-row" [class.timed-lap-done]="lapTime !== null">
+                                @for (lapDist of lapSchedule; track lapDist; let i = $index) {
+                                  @let splitTime = timedLapTime(race, i);
+                                  @let cumTime = timedCumulativeTime(race, i);
+                                  <div class="timed-lap-row" [class.timed-lap-done]="splitTime !== null">
                                     <span class="timed-lap-dist">{{ lapDist }}m</span>
                                     <span class="timed-lap-time-group">
-                                      @if (last && race.is_personal_record) {
-                                        @let pbDiff = pbImprovement(race);
-                                        @if (pbDiff) {
-                                          <c-badge class="timed-pb-diff-badge">{{ pbDiff }}</c-badge>
-                                        }
+                                      @if (splitTime) {
+                                        <!-- Gray split time badge (opaque, muted) -->
+                                        <c-badge class="timed-split-badge">{{ splitFormattedTime(splitTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(splitTime)[1] }}</small></c-badge>
+                                        <!-- Main cumulative total time -->
+                                        <span class="timed-lap-time">
+                                          <span class="race-time">{{ splitFormattedTime(cumTime!)[0] }}<small class="time-decimal">{{ splitFormattedTime(cumTime!)[1] }}</small></span>
+                                        </span>
+                                      } @else {
+                                        <span class="timed-pending">·</span>
                                       }
-                                      <span class="timed-lap-time">
-                                        @if (lapTime) {
-                                          <span class="race-time">{{ splitFormattedTime(lapTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(lapTime)[1] }}</small></span>
-                                        } @else {
-                                          <span class="timed-pending">·</span>
-                                        }
-                                      </span>
                                     </span>
                                   </div>
                                 }
@@ -242,7 +296,7 @@
                           <div class="standings-group-gap"></div>
                         }
                         <div
-                          class="race-item d-flex justify-content-between align-items-center p-2 mb-1 rounded"
+                          class="race-item race-item-laps d-flex align-items-center p-2 mb-1 rounded"
                           [attr.data-race-id]="race.id"
                           [class.flash-update]="isRecentUpdate(race.lastUpdated)"
                           [class.pos-up]="race.position_change === 'up'"
@@ -251,10 +305,10 @@
                           [class.race-selected]="selectedRaceId === race.id"
                           (click)="selectRace(race.id)"
                         >
-                          <div class="d-flex align-items-center gap-2">
+                          <div class="race-item-left d-flex align-items-center gap-2">
                             <span class="rank-label text-muted">{{ ordinalSuffix(raceIdx + 1)[0] }}<sup class="rank-sup">{{ ordinalSuffix(raceIdx + 1)[1] }}</sup></span>
                             <c-badge class="start-num-badge badge-black">{{ padStartNumber(race.start_number) }}</c-badge>
-                            <span>{{ race.name }}</span>
+                            <span class="race-name-fixed">{{ race.name }}</span>
                             @if (isRaceLeader(race, distance)) {
                               <c-badge color="success" style="font-size:0.7em">Leader</c-badge>
                             }
@@ -264,6 +318,30 @@
                               <c-badge color="primary" style="font-size:0.7em">Final lap</c-badge>
                             }
                           </div>
+                          <!-- Centre column: lap time badges (toggled by setting) always in strip, counter after -->
+                          <div class="lap-times-strip">
+                            @if (dataService.showMassStartLapTimes) {
+                              @for (lt of race.lap_times; track $index; let i = $index; let last = $last; let count = $count) {
+                                <span class="lap-time-badge {{ lapBadgeColor(race.lap_times, i) }}"
+                                  [class.lap-badge-latest]="last"
+                                  [class.lap-badge-prev]="i === count - 2"
+                                  [class.lap-badge-old]="i < count - 2"
+                                  [attr.data-lap]="last ? race.laps_count : null">
+                                  {{ splitLapTime(lt)[0] }}<small class="lap-time-decimal">{{ splitLapTime(lt)[1] }}</small>
+                                </span>
+                              }
+                              <!-- Pulsing placeholders for pending laps -->
+                              @if (distance.totalLaps) {
+                                @for (p of [].constructor(pendingLapCount(race, distance.totalLaps)); track $index) {
+                                  <span class="lap-time-badge lap-time-placeholder"></span>
+                                }
+                              }
+                            }
+                            <!-- Lap counter: plain text, after the badges -->
+                            @if (distance.totalLaps) {
+                              <span class="laps-counter-text">{{ race.laps_count }}<span class="laps-counter-total">/{{ distance.totalLaps }}</span></span>
+                            }
+                          </div>
                           <div class="d-flex align-items-center gap-2">
                             @if (race.gap_to_above) {
                               <span class="standings-gap-label">{{ race.gap_to_above }}</span>
@@ -271,9 +349,6 @@
                               <span class="race-time">{{ splitFormattedTime(race.formatted_total_time)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formatted_total_time)[1] }}</small></span>
                             } @else {
                               <span class="timed-pending">·</span>
-                            }
-                            @if (distance.totalLaps) {
-                              <c-badge color="secondary" class="laps-badge">{{ race.laps_count }}<small class="laps-total">/{{ distance.totalLaps }}</small></c-badge>
                             }
                           </div>
                         </div>

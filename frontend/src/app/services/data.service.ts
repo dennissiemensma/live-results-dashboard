@@ -31,8 +31,11 @@ const LANE_ORDER_KEYS = Object.keys(LANE_ORDER); // ['white','red','yellow','blu
 const DEFAULT_GROUP_THRESHOLD = 2.0;
 const MAX_GROUP_THRESHOLD = 10.0;
 const DEFAULT_MAX_GROUPS = 4;
+const DEFAULT_LAP_VARIANCE = 5;
 const STORAGE_KEY_THRESHOLD = 'groupThresholdSec';
 const STORAGE_KEY_MAX_GROUPS = 'maxGroups';
+const STORAGE_KEY_LAP_VARIANCE = 'lapVariancePct';
+const STORAGE_KEY_SHOW_LAP_TIMES = 'showMassStartLapTimes';
 const MAX_DEBUG_ENTRIES = 200;
 
 @Injectable({ providedIn: 'root' })
@@ -64,6 +67,39 @@ export class DataService {
 
   get groupThreshold(): number { return this._groupThreshold.value; }
   get maxGroups(): number { return this._maxGroups.value; }
+
+  private _lapVariance = new BehaviorSubject<number>(this._loadLapVariance());
+  get lapVarianceThreshold(): number { return this._lapVariance.value; }
+
+  setLapVarianceThreshold(value: number) {
+    const clamped = Math.max(0, Math.round(value));
+    this._lapVariance.next(clamped);
+    try { localStorage.setItem(STORAGE_KEY_LAP_VARIANCE, String(clamped)); } catch (e) { /* noop */ }
+  }
+
+  private _loadLapVariance(): number {
+    try {
+      const v = localStorage.getItem(STORAGE_KEY_LAP_VARIANCE);
+      if (v !== null) return Math.max(0, parseInt(v, 10));
+    } catch (e) { /* noop */ }
+    return DEFAULT_LAP_VARIANCE;
+  }
+
+  private _showMassLapTimes = new BehaviorSubject<boolean>(this._loadShowLapTimes());
+  get showMassStartLapTimes(): boolean { return this._showMassLapTimes.value; }
+
+  setShowMassStartLapTimes(value: boolean) {
+    this._showMassLapTimes.next(value);
+    try { localStorage.setItem(STORAGE_KEY_SHOW_LAP_TIMES, String(value)); } catch (e) { /* noop */ }
+  }
+
+  private _loadShowLapTimes(): boolean {
+    try {
+      const v = localStorage.getItem(STORAGE_KEY_SHOW_LAP_TIMES);
+      if (v !== null) return v !== 'false';
+    } catch (e) { /* noop */ }
+    return true;
+  }
 
   setGroupThreshold(value: number) {
     const clamped = Math.min(MAX_GROUP_THRESHOLD, Math.max(0, value));

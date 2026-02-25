@@ -104,6 +104,35 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!isNaN(val)) this.dataService.setMaxGroups(val);
   }
 
+  onLapVarianceChange(event: Event): void {
+    const val = parseInt((event.target as HTMLInputElement).value, 10);
+    if (!isNaN(val)) this.dataService.setLapVarianceThreshold(val);
+  }
+
+  onShowLapTimesChange(event: Event): void {
+    this.dataService.setShowMassStartLapTimes((event.target as HTMLInputElement).checked);
+  }
+
+  /**
+   * Returns a CSS class name for a lap time badge based on variance vs the previous lap.
+   * First lap: always 'lap-badge-normal' (green).
+   * Subsequent laps: compare to previous lap using the lapVarianceThreshold (%).
+   *   > threshold% slower  → 'lap-badge-slow'   (orange)
+   *   > threshold% faster  → 'lap-badge-fast'   (purple)
+   *   within threshold     → 'lap-badge-normal' (green)
+   */
+  lapBadgeColor(lapTimes: string[], i: number): string {
+    if (i === 0 || !lapTimes[i - 1]) return 'lap-badge-normal';
+    const curr = this._parseSeconds(lapTimes[i]);
+    const prev = this._parseSeconds(lapTimes[i - 1]);
+    if (!prev) return 'lap-badge-normal';
+    const threshold = this.dataService.lapVarianceThreshold / 100;
+    const ratio = (curr - prev) / prev;
+    if (ratio > threshold)  return 'lap-badge-slow';   // current slower  → orange
+    if (ratio < -threshold) return 'lap-badge-fast';   // current faster  → purple
+    return 'lap-badge-normal';
+  }
+
   private pulseTimeout: ReturnType<typeof setTimeout> | null = null;
   private dataSub: Subscription | null = null;
   private titleSub: Subscription | null = null;
@@ -277,6 +306,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Returns the cumulative total time up to and including lap `lapIndex` as a
+   * formatted string (e.g. "1:23.456"), summing individual split lap_times.
+   * Returns null if the lap has not been completed yet.
+   */
+  timedCumulativeTime(race: CompetitorUpdate, lapIndex: number): string | null {
+    if (!race.lap_times || race.lap_times.length <= lapIndex) return null;
+    let total = 0;
+    for (let i = 0; i <= lapIndex; i++) {
+      total += this._parseSeconds(race.lap_times[i]);
+    }
+    // format as [H:]MM:SS.mmm or SS.mmm
+    const totalMs = Math.floor(total * 1000);
+    const ms = totalMs % 1000;
+    const secs = Math.floor(totalMs / 1000) % 60;
+    const mins = Math.floor(totalMs / 60000) % 60;
+    const hrs = Math.floor(totalMs / 3600000);
+    const pad2 = (n: number) => String(n).padStart(2, '0');
+    const msPart = String(ms).padStart(3, '0');
+    if (hrs > 0) return `${hrs}:${pad2(mins)}:${pad2(secs)}.${msPart}`;
+    if (mins > 0) return `${mins}:${pad2(secs)}.${msPart}`;
+    return `${secs}.${msPart}`;
+  }
+
+  /**
    * Returns a formatted time improvement string like "- 0.521 s" when the
    * competitor has a personal best, or null otherwise.
    */
@@ -292,6 +345,37 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (parts.length === 3) return +parts[0] * 3600 + +parts[1] * 60 + parseFloat(parts[2]);
     if (parts.length === 2) return +parts[0] * 60 + parseFloat(parts[1]);
     return parseFloat(parts[0]);
+  }
+
+  /**
+   * Truncates (not rounds) a formatted lap time string to `decimals` decimal places.
+   * e.g. truncateLapTime("23.456", 1) → "23.4"
+   *      truncateLapTime("1:23.456", 1) → "1:23.4"
+   */
+  truncateLapTime(t: string, decimals = 1): string {
+    if (!t) return t;
+    const dot = t.lastIndexOf('.');
+    if (dot === -1) return t;
+    return t.substring(0, dot + 1 + decimals);
+  }
+
+  /**
+   * Like truncateLapTime but returns [integerPart, decimalPart] for split rendering.
+   * e.g. "1:23.456" → ["1:23", ".4"]
+   */
+  splitLapTime(t: string): [string, string] {
+    const truncated = this.truncateLapTime(t, 1);
+    const dot = truncated.lastIndexOf('.');
+    if (dot === -1) return [truncated, ''];
+    return [truncated.substring(0, dot), truncated.substring(dot)];
+  }
+
+  /**
+   * Returns the number of pending (not-yet-completed) laps for a mass-start competitor.
+   * = totalLaps - lap_times.length, clamped to 0.
+   */
+  pendingLapCount(race: CompetitorUpdate, totalLaps: number): number {
+    return Math.max(0, totalLaps - (race.lap_times?.length ?? 0));
   }
 
   /**
