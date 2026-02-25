@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import { DataService } from '../../services/data.service';
-import { ProcessedDistance, StandingsGroup } from '../../models/data.models';
+import { ProcessedDistance, StandingsGroup, CompetitorUpdate } from '../../models/data.models';
 import { Observable, combineLatest, timer, map, Subscription } from 'rxjs';
 import {
   AccordionModule,
@@ -213,6 +213,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (isFirst && !anyFinished) return 'Head of the race';
     return 'Group ' + group.groupNumber;
   }
+
+  /**
+   * Returns true when the competitor is the leader of the head group
+   * (group_number === 1, gap_to_above === null) and no one has finished yet.
+   */
+  isRaceLeader(race: CompetitorUpdate, distance: ProcessedDistance): boolean {
+    if (distance.anyFinished) return false;
+    return race.group_number === 1 && race.gap_to_above == null && race.finished_rank == null && !!race.total_time;
+  }
+
 
   /**
    * Returns d-none classes so card at groupIndex is hidden when viewport is too narrow.

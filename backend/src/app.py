@@ -128,32 +128,25 @@ def _process(raw: dict) -> dict:
             lane = "black" if is_mass_start else (race.get("lane") or "black")
 
             processed.append({
+                "start_number": race["competitor"]["startNumber"],
+                "laps_count": len(laps),
+                "total_time": total_time,
                 "id": race["id"],
                 "distance_id": dist_id,
-                "start_number": race["competitor"]["startNumber"],
                 "name": race["competitor"]["name"],
                 "heat": race["heat"],
                 "lane": lane,
-                "laps_count": len(laps),
-                "total_time": total_time,
                 "formatted_total_time": formatted_total_time,
-                "position": 0,
-                "position_change": None,
                 "laps_remaining": None,
                 "finished_rank": None,
             })
 
-        # sort: laps desc, time asc (numeric seconds — string comparison is wrong for times like "9.0" vs "23.4")
+        # sort: laps desc, time asc — stable ordering for broadcast sequence only, not sent to frontend
         processed.sort(key=lambda r: (-r["laps_count"], _parse_seconds(r["total_time"]) if r["total_time"] else float("inf")))
-        for i, r in enumerate(processed):
-            r["position"] = i + 1
 
         # mass-start specific
         any_finished = False
 
-        # finishing line sits below the last competitor that has a total time
-        with_time = [r for r in processed if r["total_time"]]
-        finishing_line_after: str | None = with_time[-1]["id"] if with_time else None
 
         if is_mass_start and total_laps:
             finish_rank = 1
@@ -181,7 +174,6 @@ def _process(raw: dict) -> dict:
             "distance_meters": distance_meters,
             "total_laps": total_laps,
             "any_finished": any_finished,
-            "finishing_line_after": finishing_line_after,
             "heat_groups": heat_groups,
         }
         competitors_out[dist_id] = {r["id"]: r for r in processed}
@@ -289,14 +281,12 @@ async def fetch_data_loop() -> None:
                                 await manager.broadcast({"type": "distance_meta", "data": dist})
                             for comp in comp_updates:
                                 logger.info(
-                                    "competitor_update: #%s %s — laps=%s total_time=%s (%s) pos=%s (%s)",
+                                    "competitor_update: #%s %s — laps=%s total_time=%s (%s)",
                                     comp["start_number"],
                                     comp["name"],
                                     comp["laps_count"],
                                     comp["total_time"],
                                     comp["formatted_total_time"],
-                                    comp["position"],
-                                    comp["position_change"] or "=",
                                 )
                                 await manager.broadcast({"type": "competitor_update", "data": comp})
 

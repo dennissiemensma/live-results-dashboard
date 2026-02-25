@@ -10,7 +10,6 @@ export interface DistanceMeta {
   distance_meters: number | null;
   total_laps: number | null;
   any_finished: boolean;
-  finishing_line_after: string | null;
   heat_groups: HeatGroupMeta[];
 }
 
@@ -31,12 +30,14 @@ export interface CompetitorUpdate {
   laps_count: number;
   total_time: string;
   formatted_total_time: string;
-  position: number;
-  position_change: 'up' | 'down' | null;
   laps_remaining: number | null;
+  finished_rank: number | null;
   /** Computed by frontend: laps_remaining === 1 */
   is_final_lap: boolean;
-  finished_rank: number | null;
+  /** Computed by frontend: sort position (laps desc, time asc) */
+  position: number;
+  /** Computed by frontend: compared against previous position */
+  position_change: 'up' | 'down' | null;
   /** Set by frontend on receive for flash-update animation */
   lastUpdated?: number;
   /** Computed by frontend grouping logic */
@@ -58,7 +59,7 @@ export interface ProcessedDistance {
   totalLaps: number | null;
   anyFinished: boolean;
   finishingLineAfter: string | null;
-  /** Ordered list of competitors (sorted by backend: laps desc, time asc) */
+  /** Ordered list of competitors (sorted by frontend: laps desc, time asc) */
   processedRaces: CompetitorUpdate[];
   /** Computed by frontend from processedRaces + group threshold setting */
   standingsGroups: StandingsGroup[];

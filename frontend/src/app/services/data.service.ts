@@ -42,8 +42,8 @@ export class DataService {
   private _displayedGroups = new BehaviorSubject<Map<string, StandingsGroup[]>>(new Map());
   public displayedGroups$ = this._displayedGroups.asObservable();
   private _groupDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  /** Timers that fire after flash-update animation to re-sort the standings list */
-  private _sortDeferTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Timers that clear finishingLineAfter after the 1s highlight duration */
+  private _finishingLineTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   private _maxGroups = new BehaviorSubject<number>(this._loadMaxGroups());
   public maxGroups$ = this._maxGroups.asObservable();
@@ -192,7 +192,7 @@ export class DataService {
         id: meta.id, name: meta.name, eventNumber: meta.event_number,
         isLive: meta.is_live, isMassStart: meta.is_mass_start,
         distanceMeters: meta.distance_meters, totalLaps: meta.total_laps,
-        anyFinished: meta.any_finished, finishingLineAfter: meta.finishing_line_after,
+        anyFinished: meta.any_finished, finishingLineAfter: null,
         processedRaces: [], standingsGroups: [], heatGroups: [],
       };
       this.distanceMap.set(meta.id, dist);
@@ -200,7 +200,9 @@ export class DataService {
       dist.name = meta.name; dist.eventNumber = meta.event_number;
       dist.isLive = meta.is_live; dist.isMassStart = meta.is_mass_start;
       dist.distanceMeters = meta.distance_meters; dist.totalLaps = meta.total_laps;
-      dist.anyFinished = meta.any_finished; dist.finishingLineAfter = meta.finishing_line_after;
+      dist.anyFinished = meta.any_finished;
+      // finishingLineAfter is intentionally NOT updated from the backend here;
+      // it is computed instantly by _recomputeFinishingLine on every competitor update.
     }
     dist.heatGroups = meta.heat_groups.map(hg => ({
       heat: hg.heat,
@@ -219,6 +221,13 @@ export class DataService {
     if (dist) {
       const existing = distComps.get(comp.id);
 
+      // Ensure frontend-only fields are preserved / initialised
+      comp.position = existing?.position ?? 0;
+      comp.position_change = null;
+      comp.is_final_lap = false;
+      comp.group_number = existing?.group_number ?? null;
+      comp.gap_to_above = existing?.gap_to_above ?? null;
+
       // Update the competitor object in-place so the flash animation plays
       // at the competitor's CURRENT row position.
       if (existing) {
@@ -232,8 +241,25 @@ export class DataService {
       const target = distComps.get(comp.id)!;
       target.is_final_lap = target.laps_remaining === 1;
 
+      // Recompute positions and resort immediately — before highlight and finishing line
+      this._recomputePositions(distComps);
+      dist.processedRaces = Array.from(distComps.values()).sort((a, b) => a.position - b.position);
+
+      // Set finishing line to this competitor, clear after 1s
+      dist.finishingLineAfter = comp.id;
+      const existingTimer = this._finishingLineTimers.get(comp.distance_id);
+      if (existingTimer) clearTimeout(existingTimer);
+      const clearTimer = setTimeout(() => {
+        this._finishingLineTimers.delete(comp.distance_id);
+        const d = this.distanceMap.get(comp.distance_id);
+        if (d) {
+          d.finishingLineAfter = null;
+          this.ngZone.run(() => this._publishState());
+        }
+      }, 1000);
+      this._finishingLineTimers.set(comp.distance_id, clearTimer);
+
       if (dist.isMassStart) {
-        this._recomputeFinishingLine(dist);
         this._recomputeGroups(dist);
         this._scheduleGroupDebounce(comp.distance_id);
       } else {
@@ -241,46 +267,36 @@ export class DataService {
           hg.races = this._resolveRaces(comp.distance_id, hg.races.map(r => r.id));
         });
       }
-
-      this._scheduleSortDefer(comp.distance_id);
     } else {
+      comp.position = 0;
+      comp.position_change = null;
+      comp.is_final_lap = false;
       distComps.set(comp.id, comp);
     }
     return true;
   }
 
-  private _scheduleSortDefer(distId: string) {
-    const existing = this._sortDeferTimers.get(distId);
-    if (existing) clearTimeout(existing);
-    const timer = setTimeout(() => {
-      this._sortDeferTimers.delete(distId);
-      const dist = this.distanceMap.get(distId);
-      const distComps = this.competitorMap.get(distId);
-      if (dist && distComps) {
-        dist.processedRaces = Array.from(distComps.values()).sort((a, b) => a.position - b.position);
-        if (dist.isMassStart) {
-          this._recomputeFinishingLine(dist);
-          this._recomputeGroups(dist);
-        } else {
-          dist.heatGroups.forEach(hg => {
-            hg.races = this._resolveRaces(distId, hg.races.map(r => r.id));
-          });
-        }
-        this.ngZone.run(() => this._publishState());
+  /** Sorts all competitors for a distance and assigns position + position_change. */
+  private _recomputePositions(distComps: Map<string, CompetitorUpdate>) {
+    const all = Array.from(distComps.values());
+    all.sort((a, b) => {
+      if (b.laps_count !== a.laps_count) return b.laps_count - a.laps_count;
+      if (!a.total_time && !b.total_time) return 0;
+      if (!a.total_time) return 1;
+      if (!b.total_time) return -1;
+      return this._parseSeconds(a.total_time) - this._parseSeconds(b.total_time);
+    });
+    all.forEach((r, i) => {
+      const newPos = i + 1;
+      if (r.position && r.position !== newPos) {
+        r.position_change = newPos < r.position ? 'up' : 'down';
+      } else {
+        r.position_change = null;
       }
-    }, 1000);
-    this._sortDeferTimers.set(distId, timer);
+      r.position = newPos;
+    });
   }
 
-  /** Recomputes finishingLineAfter: the last unfinished competitor (in current standings order) who has a total_time. */
-  private _recomputeFinishingLine(dist: ProcessedDistance) {
-    const distComps = this.competitorMap.get(dist.id);
-    if (!distComps) { dist.finishingLineAfter = null; return; }
-    const sorted = Array.from(distComps.values())
-      .filter(r => r.total_time && r.finished_rank == null)
-      .sort((a, b) => a.position - b.position);
-    dist.finishingLineAfter = sorted.length > 0 ? sorted[sorted.length - 1].id : null;
-  }
 
   private _timeDiff(a: string, b: string): number {
     if (!a || !b) return 9999;
@@ -405,11 +421,19 @@ export class DataService {
         }
       });
 
+      // Compute lap deficit of the tail group leader vs the first (head) group
+      const headLaps = groups[0]?.laps ?? 0;
+      const tailLaps = othersRaces[0]?.laps_count ?? 0;
+      const tailLapDiff = headLaps - tailLaps;
+      const tailGap = tailLapDiff >= 1
+        ? `+${tailLapDiff} lap${tailLapDiff === 1 ? '' : 's'}`
+        : null;
+
       dist.standingsGroups.push({
         groupNumber: maxG + 1,
-        laps: othersRaces[0]?.laps_count ?? 0,
+        laps: tailLaps,
         leaderTime: null,
-        gapToGroupAhead: null,
+        gapToGroupAhead: tailGap,
         timeBehindLeader: null,
         isLastGroup: true,
         isOthers: true,

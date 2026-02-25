@@ -1,5 +1,6 @@
 # Specifications
 Dashboard app with three components: frontend, backend, mockserver.
+When updating or adding there specs, make sure to prefix (or update the prefix) with `[ ]` to mark it TODO. After processing, mark completed items with `[x]`.
 
 Each component:
 - [x] Runs in a container via `compose.yml` and `Containerfile`
@@ -15,7 +16,7 @@ Each component:
 - [x] Fetch interval via `DATA_SOURCE_INTERVAL` env var (default `1`)
 - [x] Cache between intervals (aiocache)
 - [x] On WS connect: send `status` message with `data_source_url` and `data_source_interval`; replay latest processed state — sends `event_name`, one `distance_meta` per distance, then **all** `competitor_update` entries including those with no `total_time` (full start list); the no-time suppression rule applies only to live diff broadcasts, not the initial replay
-- [x] Log when new data is received and when updates are sent; log each competitor_update sent (start number, name, laps, total time, formatted total time, position, position change)
+- [x] Log when new data is received and when updates are sent; log each competitor_update sent (start number, name, laps, total time, formatted total time)
 
 ### Data processing (backend)
 - [x] Parse raw source data on each fetch; diff against previous parsed state
@@ -23,11 +24,10 @@ Each component:
 - [x] Mass start: omit first lap (warmup); extract total laps from distance title; badges in black
 - [x] Non-mass start: first lap counts; extract distance in meters from title; badges colored by `lane`
 - [x] Per competitor: `id`, `startNumber`, `name`, `heat`, `lane`, lap count, total time (highest lap `time`), formatted time (leading zeros stripped, truncated to 3 decimals)
-- [x] Sort competitors: laps descending, then total time ascending; time comparison uses parsed seconds (numeric), not lexicographic string order; competitors with no time sort last
-- [x] Detect position changes per competitor vs previous state
+- [x] Backend sorts competitors (laps descending, total time ascending, no-time last) to produce a stable ordering for `competitor_update` broadcast sequence only; this order is not sent to the frontend and is not used for UI positioning
+- [x] `position` and `position_change` are not computed by the backend and are not included in `competitor_update`
 - [x] Mass start: compute standings groups (same lap count + within configurable threshold); assign group number, gap to group ahead, time behind leader, intra-group gap, leader time; mark tail group; competitors with no total time are not grouped; **group threshold computed in frontend**
-- [x] Mass start: compute `finishing_line_after` (last competitor with a total time in standings order)
-- [x] Mass start: compute `any_finished`, `laps_remaining`, `finished_rank` per competitor; `is_final_lap` is not computed by the backend — derived in frontend
+- [x] Mass start: compute `any_finished`, `laps_remaining`, `finished_rank` per competitor; `is_final_lap` and `finishing_line_after` are not computed by the backend — both derived in frontend
 - [x] Non-mass start: group by heat, sorted by heat then time
 - [x] Backend does not compute standings groups; sends flat sorted competitor list only
 - [x] Reject source updates with top-level `success: false`; broadcast `error` message to clients
@@ -35,8 +35,8 @@ Each component:
 ### WebSocket messages (backend → frontend)
 - [x] `status`: connection metadata (`data_source_url`, `data_source_interval`)
 - [x] `error`: human-readable error string
-- [x] `distance_meta`: per-distance scalar fields (`id`, `name`, `event_number`, `is_live`, `is_mass_start`, `distance_meters`, `total_laps`, `any_finished`, `finishing_line_after`, `heat_groups`); no standings groups
-- [x] `competitor_update`: one message per changed competitor; fields: `distance_id`, `id`, `start_number`, `name`, `heat`, `lane`, `laps_count`, `total_time`, `formatted_total_time`, `position`, `position_change`, `gap_to_above`, `laps_remaining`, `finished_rank`, `group_number`; **not sent when `total_time` is empty after the initial appearance** — first appearance (start list) is always sent regardless
+- [x] `distance_meta`: per-distance scalar fields (`id`, `name`, `event_number`, `is_live`, `is_mass_start`, `distance_meters`, `total_laps`, `any_finished`, `heat_groups`); no standings groups; `finishing_line_after` is not used — computed in frontend
+- [x] `competitor_update`: one message per changed competitor; fields: `start_number`, `laps_count`, `total_time`, `distance_id`, `id`, `name`, `heat`, `lane`, `formatted_total_time`, `laps_remaining`, `finished_rank`; `position` and `position_change` are not sent — computed in frontend; **not sent when `total_time` is empty after the initial appearance** — first appearance (start list) is always sent regardless
 - [x] On each fetch cycle: send one `distance_meta` per changed distance, then one `competitor_update` per changed competitor
 
 ## Frontend
@@ -52,6 +52,7 @@ Each component:
 - [x] Max render cycle duration configurable (`RENDER_INTERVAL_MS`, default `250ms`)
 - [x] Group threshold (seconds) is a local GUI setting (default `2.0s`), persisted in localStorage; frontend computes standings groups dynamically using this value; recomputes on every update and on threshold change
 - [x] `is_final_lap` is computed in the frontend: a competitor is on their final lap when `laps_remaining === 1`; recomputed on every competitor update
+- [x] `position` is computed in the frontend after every update: competitors are sorted laps descending then total time ascending (numeric seconds); competitors with no time sort last; `position_change` (`up` / `down` / `null`) is derived by comparing the new position against the previous position for each competitor; both recomputed on every competitor update
 - [x] No other state is persisted; backend replays full state on every WebSocket connect; "Clear all data" reloads the page
 - [x] Reconnect every 5s on lost connection, show error
 
@@ -73,27 +74,27 @@ Each component:
 
 ##### Inside each accordion
 - [x] Mass start: top row of group cards; non-mass-start: group by heat in cards sorted by heat then time
-- [x] Group cards: first group titled **"Head of the race"** with a green **"Leader"** badge **right-aligned** in the card header while no one has finished; once anyone finishes the first group reverts to **"Group 1"** (badge also hidden); overflow/tail group titled **"Tail of the race"** (no extra badge); intermediate groups titled "Group X"; gap badge (`+Xs`) shown right-aligned in the card header for non-head groups; head group shows no gap; finished competitors are removed from group cards immediately
-- [x] Head group tagged "Head of the race" (title) with green "Leader" badge; both revert to "Group 1" / no badge after first finish
+- [ ] Group cards: first group titled **"Head of the race"** while no one has finished; once anyone finishes the first group reverts to **"Group 1"**; overflow/tail group titled **"Tail of the race"** (no extra badge); intermediate groups titled "Group X"; gap badge (`+Xs`) shown right-aligned in the card header for non-head groups; head group shows no gap; finished competitors are removed from group cards immediately
+- [x] Tail of the race group card: when any competitor in the tail group is 1 or more laps behind the leader (first group), show an orange opaque badge indicating the lap deficit (e.g. `+X lap(s)`) right-aligned in the card header
+- [x] "Leader" badge (green): shown **inline after the leader's name** in the group strip card (not in the card header); hidden once anyone has finished; also shown inline after the leader's name in the standings row list (same condition)
 - [x] Between groups: gap badge shown top-right in the card header; shows `+Xs` time diff when the group is on the same lap count as the leader (first group), or `+X lap(s)` when the group is at least one lap behind the leader — lap count is always compared against the first group, not the group immediately ahead
 - [x] Group strip shown immediately on initial load (no debounce delay on first render); subsequent updates still debounced by group threshold
 - [x] Sync highlight/animate updates between strip and standings list
 - [x] Animate position changes in both columns
 - [x] Group separator lines in standings list use the same naming: "Head of the race" / "Group X" / "Tail of the race"; first group reverts to "Group 1" once anyone finishes (mirrors card behaviour)
-- [x] Finishing line in group cards: rendered as an **inline DOM element** inside each group card's competitor list, below the last competitor in that card who has a `total_time` and is not yet finished (`finished_rank == null`); uses the same `finishingLineAfter` id and the same styling (solid 3px bright orange line, "Lap completed" label) as the standings list; the line only appears in the card that contains the matching competitor; updates immediately with no delay, moves naturally as card contents reorder
 
 ##### Competitor list row
 - [x] All competitors; mass start: single list (black badges); non-mass start: grouped by heat
 - [x] Group cards: group leader right-side slot shows **"Final lap"** label (blue) when `is_final_lap` is true (frontend-computed), nothing otherwise; subsequent competitors show their gap to the **group leader**: time diff (`+Xs`) when both have a `total_time` and are on the same lap; lap diff (`+X lap(s)`) when the competitor is on a different lap count than the group leader or has no `total_time`
-- [x] Sort: laps descending, then total time ascending (by `position` field from backend, assigned after numeric sort)
+- [x] Sort: laps descending, then total time ascending; computed by frontend after each update using numeric seconds comparison; competitors with no time sort last
 - [x] "Final lap" (blue) / "Finished" (green) badge; finished competitor rows are slightly opaque
 - [x] All competitors show either their `gap_to_above` (time diff or lap diff) **or** their `formatted_total_time` — never both; group leaders and finished competitors show `formatted_total_time`; non-leader unfinished competitors show `gap_to_above` instead; rendered before the laps badge
 - [x] Rank prefix: "1ˢᵗ" style with raised superscript, light gray
 - [x] Laps badge: "X/total" with total in small gray; rendered after the time/gap field; fixed min-width for "XX/XX" (5 chars + padding), centered, monospace — same sizing logic as `start_number` badge
 - [x] Time: decimals in small gray
 - [x] Animate row background to light yellow on update for 1s **only when the competitor received an actual backend update**; no highlight on restore or group recompute
-- [x] Animate position changes with a two-row swap animation: when two competitors exchange positions, both rows slide past each other simultaneously using a CSS translate transition, so the movement is visually symmetrical; row position is NOT updated until after the 1s flash-update highlight completes (deferred sort: 1s debounce after last update for the distance)
-- [x] Finishing line: rendered as an **inline DOM element** in the list flow, below the competitor currently at `finishingLineAfter`; styled as a solid 3px bright orange line with a small "Lap completed" label; moves naturally with the list as rows reorder; no absolute positioning or JS measurement; `finishingLineAfter` is always the id of the last competitor (in standings order) who has a `total_time` and is not yet finished (`finished_rank == null`); updated immediately on every competitor update with no queuing or artificial delay; the line moves smoothly as the standings list reorders naturally
+- [x] On each competitor update: (1) recompute positions and resort `processedRaces` immediately; (2) flash-highlight the updated row at its new sorted position for 1s; (3) show the finishing line below that row for the same 1s; the deferred sort is removed — sorting always happens before the highlight, never after
+- [x] Finishing line: rendered as an **inline DOM element** in the list flow, below the competitor currently at `finishingLineAfter`; styled as a solid 3px bright orange line with a small "Lap completed" label; `finishingLineAfter` is set to the id of the most recently updated competitor after the list has been resorted; it is cleared automatically after 1s; never shown in more than one place at a time
 - [x] Group separator lines with group name; styled as a thin 1px gray line; small top margin above each group divider; a gray transparent count badge (competitor count) and an orange gap badge (`+Xs` / `+X lap(s)`, same value as the group card header gap) are rendered inline after the group name on the separator line; head group shows no gap badge
 - [x] Click to select competitor; reflected in both strip and standings; click again/elsewhere to deselect
 
