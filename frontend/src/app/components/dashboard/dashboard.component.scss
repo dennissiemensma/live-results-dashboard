@@ -286,20 +286,7 @@
   background-color: var(--cui-warning, #f9b115);
   color: #212529;
   letter-spacing: 0.02em;
-}
-// Orange opaque lap-deficit badge for the Tail of the race group card
-.tail-lap-badge {
-  display: inline-block;
-  font-size: 0.65em;
-  font-family: monospace;
-  font-weight: 700;
-  padding: 0.15em 0.45em;
-  border-radius: 0.3em;
-  background-color: #fd7e14;
-  color: #fff;
-  letter-spacing: 0.02em;
-}
-// ===== SKELETON =====
+}// ===== SKELETON =====
 @keyframes shimmer {
   0%   { background-position: -400px 0; }
   100% { background-position:  400px 0; }

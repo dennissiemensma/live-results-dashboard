@@ -74,9 +74,10 @@ Each component:
 
 ##### Inside each accordion
 - [x] Mass start: top row of group cards; non-mass-start: group by heat in cards sorted by heat then time
-- [ ] Group cards: first group titled **"Head of the race"** while no one has finished; once anyone finishes the first group reverts to **"Group 1"**; overflow/tail group titled **"Tail of the race"** (no extra badge); intermediate groups titled "Group X"; gap badge (`+Xs`) shown right-aligned in the card header for non-head groups; head group shows no gap; finished competitors are removed from group cards immediately
-- [x] Tail of the race group card: when any competitor in the tail group is 1 or more laps behind the leader (first group), show an orange opaque badge indicating the lap deficit (e.g. `+X lap(s)`) right-aligned in the card header
-- [x] "Leader" badge (green): shown **inline after the leader's name** in the group strip card (not in the card header); hidden once anyone has finished; also shown inline after the leader's name in the standings row list (same condition)
+- [x] Group cards: first group titled **"Head of the race"** while no one has finished; once anyone finishes the first group reverts to **"Group 1"**; overflow/tail group titled **"Tail of the race"**; intermediate groups titled "Group X"; card header shows only the group title; finished competitors are removed from group cards immediately
+- [x] Tail of the race group card: when any competitor in the tail group is 1 or more laps behind the leader (first group), show a gap badge (same style as other group gap badges) indicating the lap deficit (e.g. `+X lap(s)`) right-aligned in the card header
+- [x] "Leader" badge (green): shown **right-aligned in the leader's row** in the group strip card; hidden once anyone has finished; also shown inline after the leader's name in the standings row list (same condition)
+- [x] Gap badge (`+Xs` / `+X lap(s)`): shown **right-aligned in the first (top) competitor row** of each non-head group card; for the head group the right slot shows "Leader" (green) instead; if the top competitor is on their final lap and no gap badge applies, "Final lap" (blue) is shown instead
 - [x] Between groups: gap badge shown top-right in the card header; shows `+Xs` time diff when the group is on the same lap count as the leader (first group), or `+X lap(s)` when the group is at least one lap behind the leader — lap count is always compared against the first group, not the group immediately ahead
 - [x] Group strip shown immediately on initial load (no debounce delay on first render); subsequent updates still debounced by group threshold
 - [x] Sync highlight/animate updates between strip and standings list
