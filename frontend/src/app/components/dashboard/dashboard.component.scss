@@ -164,6 +164,144 @@
 .race-finished {
   opacity: 0.45;
 }
+// ===== TIMED DISTANCES =====
+// Plain heat row — no border/background, just a label + cards below
+.timed-heat-row {
+  // no visual styling — plain stacking
+}
+.timed-heat-label {
+  font-size: 0.78em;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+}
+// Always 4 competitor cards per row, left-aligned, fixed width
+.timed-competitors-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.timed-competitor-card {
+  flex: 0 0 calc(25% - 0.375rem); // 4 per row accounting for 3 gaps of 0.5rem
+  min-width: 8rem;
+  cursor: pointer;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 0.375rem;
+  background: #fff;
+  overflow: hidden;
+  transition: outline 0.1s;
+  &.race-selected {
+    outline: 2px solid #0d6efd !important;
+    outline-offset: -2px;
+  }
+  &.timed-lane-placeholder {
+    border-color: transparent;
+    background: transparent;
+    cursor: default;
+    pointer-events: none;
+  }
+}
+// Card title: badge + name + Finished badge inline after name
+.timed-comp-header {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid rgba(0,0,0,0.10);
+  background: rgba(0,0,0,0.02);
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.timed-comp-name {
+  font-size: 0.8em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 1;
+}
+.timed-finished-badge {
+  font-size: 0.6em !important;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.timed-pr-badge {
+  font-size: 0.6em !important;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.timed-pb-diff-badge {
+  font-size: 0.6em !important;
+  flex-shrink: 0;
+  white-space: nowrap;
+  background-color: #6f42c1 !important;
+  color: #fff !important;
+  font-variant-numeric: tabular-nums;
+}
+// PB card: golden left border only
+.timed-competitor-card.timed-pr {
+  border-left: 3px solid #f9b115;
+}
+// Header needs position:relative so the star can be anchored
+.timed-comp-header-pb {
+  position: relative;
+}
+// ★ star pinned to the top-right corner of the card header
+.timed-pb-star {
+  position: absolute;
+  top: 0.2rem;
+  right: 0.3rem;
+  font-size: 0.95em;
+  color: #f9b115;
+  line-height: 1;
+  pointer-events: none;
+}
+.timed-comp-body {
+  padding: 0.25rem 0.5rem;
+}
+// One lap row inside competitor card body
+.timed-lap-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  &:last-child { border-bottom: none; }
+}
+.timed-lap-dist {
+  font-size: 0.7em;
+  color: #6c757d;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-right: 0.4rem;
+}
+.timed-lap-time {
+  font-size: 0.82em;
+  font-variant-numeric: tabular-nums;
+  color: #adb5bd;
+  text-align: right;
+}
+.timed-lap-time-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+.timed-lap-row.timed-lap-done .timed-lap-time {
+  color: inherit;
+  font-weight: 500;
+}
+// Pending symbol
+.timed-pending {
+  color: #ced4da;
+  font-size: 1.1em;
+  line-height: 1;
+}
+
 // ===== LAPS BADGE =====
 .laps-badge {
   font-family: monospace !important;

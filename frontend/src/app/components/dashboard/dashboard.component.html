@@ -153,44 +153,71 @@
                 } <!-- end @if dGroups.length -->
               } <!-- end @if distance.isMassStart -->
               <c-row>
-                <!-- NON-MASS-START: full width, grouped by heat -->
+                <!-- TIMED DISTANCE: one plain unstyled row per heat, competitor cards inside -->
                 @if (!distance.isMassStart) {
                   <c-col [xs]="12">
+                    @let lapSchedule = distance.distanceMeters ? timedDistanceLapSchedule(distance.distanceMeters) : [];
                     @for (heatGroup of distance.heatGroups; track heatGroup.heat) {
-                      <c-card class="mb-3">
-                        <c-card-header class="py-2"><strong>Heat {{ heatGroup.heat }}</strong></c-card-header>
-                        <c-card-body class="py-1 px-2">
-                          <div [@raceList]="raceListKey(heatGroup.races)">
-                            @for (race of heatGroup.races; track race.id) {
-                              <div
-                                class="race-item d-flex align-items-center p-2 mb-1 rounded"
-                                [class.flash-update]="isRecentUpdate(race.lastUpdated)"
-                                [class.pos-up]="race.position_change === 'up'"
-                                [class.pos-down]="race.position_change === 'down'"
+                      <div class="timed-heat-row mb-3">
+                        <div class="timed-heat-label">Heat {{ heatGroup.heat }}</div>
+                        <div class="timed-competitors-row">
+                          @for (race of heatGroup.races; track $index) {
+                            @if (race) {
+                            <div
+                                class="timed-competitor-card"
                                 [class.race-selected]="selectedRaceId === race.id"
+                                [class.flash-update]="isRecentUpdate(race.lastUpdated)"
+                                [class.race-finished]="distance.distanceMeters != null && isTimedFinished(race, distance.distanceMeters)"
+                                [class.timed-pr]="race.is_personal_record"
                                 (click)="selectRace(race.id)"
                               >
-                                <div class="d-flex align-items-center gap-2">
-                                  <c-badge
-                                    class="start-num-badge"
-                                    [style.background-color]="race.lane"
-                                    [ngClass]="badgeTextClass(race.lane)"
-                                  >{{ padStartNumber(race.start_number) }}</c-badge>
-                                  <span>{{ race.name }}</span>
-                                </div>
-                                <div class="d-flex align-items-center gap-2 ms-auto">
-                                  @if (race.formatted_total_time && race.formatted_total_time !== 'No Time') {
-                                    <span class="race-time">{{ splitFormattedTime(race.formatted_total_time)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formatted_total_time)[1] }}</small></span>
-                                  } @else {
-                                    <span class="text-muted small">No Time</span>
-                                  }
-                                  <c-badge color="secondary" class="laps-badge">{{ race.laps_count }}</c-badge>
-                                </div>
+                              <!-- Card title: badge + name + Finished left; PB badge right -->
+                              <div class="timed-comp-header">
+                                <c-badge
+                                  class="start-num-badge"
+                                  [style.background-color]="race.lane"
+                                  [ngClass]="badgeTextClass(race.lane)"
+                                >{{ padStartNumber(race.start_number) }}</c-badge>
+                                <span class="timed-comp-name">{{ race.name }}</span>
+                                @if (distance.distanceMeters && isTimedFinished(race, distance.distanceMeters)) {
+                                  <c-badge color="success" class="timed-finished-badge">Finished</c-badge>
+                                }
+                                @if (race.is_personal_record) {
+                                  <c-badge color="warning" class="timed-pr-badge ms-auto">New personal best!</c-badge>
+                                }
                               </div>
+                              <!-- Card body: one row per lap distance -->
+                              <div class="timed-comp-body">
+                                @for (lapDist of lapSchedule; track lapDist; let i = $index; let last = $last) {
+                                  @let lapTime = timedLapTime(race, i);
+                                  <div class="timed-lap-row" [class.timed-lap-done]="lapTime !== null">
+                                    <span class="timed-lap-dist">{{ lapDist }}m</span>
+                                    <span class="timed-lap-time-group">
+                                      @if (last && race.is_personal_record) {
+                                        @let pbDiff = pbImprovement(race);
+                                        @if (pbDiff) {
+                                          <c-badge class="timed-pb-diff-badge">{{ pbDiff }}</c-badge>
+                                        }
+                                      }
+                                      <span class="timed-lap-time">
+                                        @if (lapTime) {
+                                          <span class="race-time">{{ splitFormattedTime(lapTime)[0] }}<small class="time-decimal">{{ splitFormattedTime(lapTime)[1] }}</small></span>
+                                        } @else {
+                                          <span class="timed-pending">·</span>
+                                        }
+                                      </span>
+                                    </span>
+                                  </div>
+                                }
+                              </div>
+                            </div>
+                            } @else {
+                              <!-- Empty placeholder to preserve lane column position -->
+                              <div class="timed-competitor-card timed-lane-placeholder"></div>
                             }
-                          </div>
-                        </c-card-body>
-                      </c-card>
+                          }
+                        </div>
+                      </div>
                     }
                   </c-col>
                 }
@@ -239,15 +266,13 @@
                           <div class="d-flex align-items-center gap-2">
                             @if (race.gap_to_above) {
                               <span class="standings-gap-label">{{ race.gap_to_above }}</span>
-                            } @else if (race.formatted_total_time && race.formatted_total_time !== 'No Time') {
+                            } @else if (race.formatted_total_time) {
                               <span class="race-time">{{ splitFormattedTime(race.formatted_total_time)[0] }}<small class="time-decimal">{{ splitFormattedTime(race.formatted_total_time)[1] }}</small></span>
                             } @else {
-                              <span class="text-muted small">No Time</span>
+                              <span class="timed-pending">·</span>
                             }
                             @if (distance.totalLaps) {
                               <c-badge color="secondary" class="laps-badge">{{ race.laps_count }}<small class="laps-total">/{{ distance.totalLaps }}</small></c-badge>
-                            } @else {
-                              <c-badge color="secondary">{{ race.laps_count }} lap{{ race.laps_count !== 1 ? 's' : '' }}</c-badge>
                             }
                           </div>
                         </div>

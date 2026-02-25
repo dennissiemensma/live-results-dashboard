@@ -176,7 +176,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   splitFormattedTime(t: string): [string, string] {
-    if (!t || t === 'No Time') return [t || '', ''];
+    if (!t) return ['', ''];
     const dot = t.indexOf('.');
     if (dot === -1) return [t, ''];
     return [t.substring(0, dot), '.' + t.substring(dot + 1)];
@@ -239,6 +239,60 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return race.group_number === 1 && race.gap_to_above == null && race.finished_rank == null && !!race.total_time;
   }
 
+
+  /**
+   * Returns the ordered list of cumulative distances (in metres) at which
+   * a lap is expected for a timed distance, derived from first_lap % 400.
+   * e.g. distanceMeters=1000 → [200, 600, 1000]
+   *      distanceMeters=500  → [100, 500]
+   *      distanceMeters=100  → [100]
+   */
+  timedDistanceLapSchedule(distanceMeters: number): number[] {
+    const firstLap = distanceMeters % 400 || 400;
+    const laps: number[] = [firstLap];
+    let cumulative = firstLap;
+    while (cumulative < distanceMeters) {
+      cumulative += 400;
+      laps.push(cumulative);
+    }
+    return laps;
+  }
+
+  /** Total number of expected laps for a timed distance. */
+  timedDistanceTotalLaps(distanceMeters: number): number {
+    return this.timedDistanceLapSchedule(distanceMeters).length;
+  }
+
+  /** True when the competitor has completed all laps for the timed distance. */
+  isTimedFinished(race: CompetitorUpdate, distanceMeters: number): boolean {
+    return race.laps_count >= this.timedDistanceTotalLaps(distanceMeters);
+  }
+
+  /**
+   * Returns the lapTime string for the nth lap (0-based) of a timed competitor,
+   * or null if that lap has not been completed yet.
+   */
+  timedLapTime(race: CompetitorUpdate, lapIndex: number): string | null {
+    return race.lap_times?.[lapIndex] ?? null;
+  }
+
+  /**
+   * Returns a formatted time improvement string like "- 0.521 s" when the
+   * competitor has a personal best, or null otherwise.
+   */
+  pbImprovement(race: CompetitorUpdate): string | null {
+    if (!race.is_personal_record || !race.total_time || !race.personal_record) return null;
+    const diff = this._parseSeconds(race.personal_record) - this._parseSeconds(race.total_time);
+    if (diff <= 0) return null;
+    return `- ${diff.toFixed(3)} s`;
+  }
+
+  private _parseSeconds(t: string): number {
+    const parts = t.split(':');
+    if (parts.length === 3) return +parts[0] * 3600 + +parts[1] * 60 + parseFloat(parts[2]);
+    if (parts.length === 2) return +parts[0] * 60 + parseFloat(parts[1]);
+    return parseFloat(parts[0]);
+  }
 
   /**
    * Returns d-none classes so card at groupIndex is hidden when viewport is too narrow.

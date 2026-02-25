@@ -28,7 +28,7 @@ Each component:
 - [x] `position` and `position_change` are not computed by the backend and are not included in `competitor_update`
 - [x] Mass start: compute standings groups (same lap count + within configurable threshold); assign group number, gap to group ahead, time behind leader, intra-group gap, leader time; mark tail group; competitors with no total time are not grouped; **group threshold computed in frontend**
 - [x] Mass start: compute `any_finished`, `laps_remaining`, `finished_rank` per competitor; `is_final_lap` and `finishing_line_after` are not computed by the backend — both derived in frontend
-- [x] Timed distance: group by heat, sorted by heat then time
+- [x] Timed distance: group by heat, sorted by heat then time; a timed distance is only marked complete (`isLive=False`) once **every** competitor in the distance has a lap time recorded for **every** expected lap — partial completion (some competitors still missing laps) keeps the distance live
 - [x] Backend does not compute standings groups; sends flat sorted competitor list only
 - [x] Reject source updates with top-level `success: false`; broadcast `error` message to clients
 
@@ -36,7 +36,7 @@ Each component:
 - [x] `status`: connection metadata (`data_source_url`, `data_source_interval`)
 - [x] `error`: human-readable error string
 - [x] `distance_meta`: per-distance scalar fields (`id`, `name`, `event_number`, `is_live`, `is_mass_start`, `distance_meters`, `total_laps`, `any_finished`, `heat_groups`); no standings groups; `finishing_line_after` is not used — computed in frontend
-- [x] `competitor_update`: one message per changed competitor; fields: `start_number`, `laps_count`, `total_time`, `distance_id`, `id`, `name`, `heat`, `lane`, `formatted_total_time`, `lap_times` (list of `lapTime` strings for each completed lap, in order), `laps_remaining`, `finished_rank`; `position` and `position_change` are not sent — computed in frontend; **not sent when `total_time` is empty after the initial appearance** — first appearance (start list) is always sent regardless
+- [x] `competitor_update`: one message per changed competitor; fields: `start_number`, `laps_count`, `total_time`, `distance_id`, `id`, `name`, `heat`, `lane`, `formatted_total_time`, `lap_times` (list of `lapTime` strings for each completed lap, in order), `laps_remaining`, `finished_rank`, `personal_record` (formatted time string or `null`); `position` and `position_change` are not sent — computed in frontend; **not sent when `total_time` is empty after the initial appearance** — first appearance (start list) is always sent regardless
 - [x] On each fetch cycle: send one `distance_meta` per changed distance, then one `competitor_update` per changed competitor
 
 ## Frontend
@@ -47,7 +47,7 @@ Each component:
 - [x] Reconnect every 5s on lost connection, show error
 
 ### Data layer
-- [x] Apply `distance_meta` and `competitor_update` messages to local state
+- [x] Apply `distance_meta` and `competitor_update` messages to local state; `distance_meta` stores the authoritative `raceIds` list per heat group so that competitor cards can be resolved correctly on reconnect/refresh even before all competitor updates have been applied
 - [x] Incoming updates are queued; each render cycle is completed before starting the next
 - [x] Max render cycle duration configurable (`RENDER_INTERVAL_MS`, default `250ms`)
 - [x] Group threshold (seconds) is a local GUI setting (default `2.0s`), persisted in localStorage; frontend computes standings groups dynamically using this value; recomputes on every update and on threshold change
@@ -73,7 +73,7 @@ Each component:
 - [x] Group strip updates are debounced: only rendered after no competitor changes for the group threshold duration
 
 ##### Inside each accordion
-- [x] Mass start: top row of group cards; timed distance: one column card per heat, all heat columns rendered side-by-side (flex row, equal width, wrapping on small screens)
+- [x] Mass start: top row of group cards; timed distance: one plain unstyled row per heat (no card, no border, no background — just a label and the competitor cards below it); inside each heat row, each competitor is rendered as a card (always 4 cards per row, left-aligned, fixed width); the card title contains the start-number badge + competitor name + "Finished" green badge inline after the name (when all laps done); the card body contains one row per expected lap distance (e.g. 200m, 600m, 1000m) showing the lap time when available or `·` when pending
 - [x] Group cards: first group titled **"Head of the race"** while no one has finished; once anyone finishes the first group reverts to **"Group 1"**; overflow/tail group titled **"Tail of the race"**; intermediate groups titled "Group X"; card header shows only the group title; finished competitors are removed from group cards immediately
 - [x] Tail of the race group card: when any competitor in the tail group is 1 or more laps behind the leader (first group), show a gap badge (same style as other group gap badges) indicating the lap deficit (e.g. `+X lap(s)`) right-aligned in the card header
 - [x] "Leader" badge (green): shown **right-aligned in the leader's row** in the group strip card; hidden once anyone has finished; also shown inline after the leader's name in the standings row list (same condition)
@@ -85,16 +85,15 @@ Each component:
 - [x] Group separator lines in standings list use the same naming: "Head of the race" / "Group X" / "Tail of the race"; first group reverts to "Group 1" once anyone finishes (mirrors card behaviour)
 
 ##### Competitor list row
-- [x] All competitors; mass start: single list (black badges); timed distance: one column card per heat
-- [x] Timed distance heat column: each competitor occupies one row; the row pre-renders all expected lap passings for that distance as individual lap cells (e.g. 1000m shows three cells: 200m · 600m · 1000m); lap cumulative-distance labels are derived from `first_lap_meters` then `+400m` steps up to `distance_meters`; each cell shows the `lapTime` string once the lap has been completed, or a pending symbol (e.g. `·`) while not yet passed; the final cell (at `distance_meters`) doubles as the competitor's finishing time
-- [x] Timed distance: "Finished" badge (green) shown inline after the competitor name once all expected laps have been completed (i.e. `laps_count` equals the total lap count for that distance)
-- [x] Timed distance competitor rows sorted within each heat column by finishing time ascending (fastest first); competitors with no time yet sort to the bottom
+- [x] All competitors; mass start: single list (black badges); timed distance: per-heat rows, per-competitor cards
+- [x] Timed distance competitor card: card title = start-number badge + competitor name + "Finished" green badge inline after the name (when all laps done) + "New personal best!" yellow badge **right-aligned** in the card title (pushed to the trailing edge); card body = one row per expected lap distance labelled with the cumulative distance (e.g. 200m, 600m, 1000m); the final lap row (at `distance_meters`) shows the purple time-improvement badge (e.g. `- 0.521 s`) **before** (to the left of) the lap time when a personal best was set, both right-aligned together; lap time shown with mass-start time formatting (leading zeros stripped, decimals in small gray) when available, or `·` when pending; finished competitor cards are rendered at reduced opacity (same as mass-start finished rows); personal-best cards show a golden left border; competitor cards are laid out in fixed lane-color columns in the order **white → red → yellow → blue**; each lane color always occupies its fixed column slot — if a lane is absent from a heat an empty placeholder card is rendered so the positions of the other lanes never shift; any lane not in this list is appended after blue in arbitrary order
+- [x] Mockserver and backend send lap times truncated to 3 decimal places; frontend formats them identically to mass-start times (leading zeros stripped, decimal part in small gray)
 - [x] Group cards: group leader right-side slot shows **"Final lap"** label (blue) when `is_final_lap` is true (frontend-computed), nothing otherwise; subsequent competitors show their gap to the **group leader**: time diff (`+Xs`) when both have a `total_time` and are on the same lap; lap diff (`+X lap(s)`) when the competitor is on a different lap count than the group leader or has no `total_time`
 - [x] Sort: laps descending, then total time ascending; computed by frontend after each update using numeric seconds comparison; competitors with no time sort last
 - [x] "Final lap" (blue) / "Finished" (green) badge; finished competitor rows are slightly opaque
 - [x] All competitors show either their `gap_to_above` (time diff or lap diff) **or** their `formatted_total_time` — never both; group leaders and finished competitors show `formatted_total_time`; non-leader unfinished competitors show `gap_to_above` instead; rendered before the laps badge
 - [x] Rank prefix: "1ˢᵗ" style with raised superscript, light gray
-- [x] Laps badge: "X/total" with total in small gray; fixed min-width for "XX/XX" (5 chars + padding), centered, monospace — same sizing logic as `start_number` badge; **mass start**: rendered inline after the time/gap field (left-to-right flow); **timed distance**: pinned to the right side of the row (pushed to the trailing edge, regardless of the time/gap content width)
+- [x] Laps badge: **mass start only** — "X/total" with total in small gray; fixed min-width for "XX/XX" (5 chars + padding), centered, monospace, rendered inline after the time/gap field; **timed distance**: no laps badge; instead show a "Finished" badge (green) pinned to the right side of the row once all expected laps are completed, nothing otherwise
 - [x] Mass start: when a competitor has no total time yet, display a pending symbol (e.g. `·` or `—`) instead of a time string; never show a "No Time" text label anywhere in the UI
 - [x] Time: decimals in small gray
 - [x] Animate row background to light yellow on update for 1s **only when the competitor received an actual backend update**; no highlight on restore or group recompute
@@ -115,7 +114,7 @@ Each component:
   - 500m: first lap = 100m (500 % 400 = 100); then 1 × 400m lap = 500m total
   - 1000m: first lap = 200m (1000 % 400 = 200); then 2 × 400m laps = 1000m total
   - 1500m: first lap = 300m (1500 % 400 = 300); then 3 × 400m laps = 1500m total
-- [x] Timed distances: 2–4 heats of 2–4 competitors each with assigned lane colors; all distances start simultaneously at init/reset
-- [x] Timed distance competitors: each has a stable personal speed (m/s) with per-lap noise; lap split time computed from distance ÷ speed
-- [x] Timed distances marked `isLive=False` once all competitors in that distance finish
+- [x] Timed distances: 2–4 heats of 2–4 competitors each with assigned lane colors; all distances start simultaneously at init/reset; on init all timed competitors are emitted immediately without times (empty `laps`) so the frontend can pre-render the full start list before any lap times arrive
+- [x] Timed distance competitors: each has a stable personal speed (m/s) with per-lap noise; lap split time computed from distance ÷ speed; ~70% of competitors have a `personalRecord`; ~50% of those records are set slightly above the competitor's expected time (beatable), ensuring some PR badges appear on finish
+- [x] Timed distances marked `isLive=False` only once **every** competitor has a lap time for **every** required lap of that distance; a distance where any competitor is still missing any lap time remains live
 - [x] All other distances from `example.json` are **not** included in the simulated output — only the mass-start distance and the four timed distances above

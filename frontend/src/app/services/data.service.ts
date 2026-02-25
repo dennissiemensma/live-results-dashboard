@@ -24,6 +24,8 @@ export interface DebugEntry {
 }
 
 const RENDER_INTERVAL_MS = 250;
+const LANE_ORDER: Record<string, number> = { white: 0, red: 1, yellow: 2, blue: 3 };
+const LANE_ORDER_KEYS = Object.keys(LANE_ORDER); // ['white','red','yellow','blue']
 const DEFAULT_GROUP_THRESHOLD = 2.0;
 const MAX_GROUP_THRESHOLD = 10.0;
 const DEFAULT_MAX_GROUPS = 4;
@@ -216,7 +218,8 @@ export class DataService {
     }
     dist.heatGroups = meta.heat_groups.map(hg => ({
       heat: hg.heat,
-      races: this._resolveRaces(meta.id, hg.race_ids),
+      raceIds: hg.race_ids,
+      races: this._resolveRaces(meta.id, hg.race_ids, !meta.is_mass_start),
     }));
     return true;
   }
@@ -237,6 +240,7 @@ export class DataService {
       comp.is_final_lap = false;
       comp.group_number = existing?.group_number ?? null;
       comp.gap_to_above = existing?.gap_to_above ?? null;
+      comp.is_personal_record = false;
 
       // Update the competitor object in-place so the flash animation plays
       // at the competitor's CURRENT row position.
@@ -251,6 +255,14 @@ export class DataService {
       const target = distComps.get(comp.id)!;
       target.is_final_lap = target.laps_remaining === 1;
 
+      // Derive is_personal_record: finished timed competitor with time < PR
+      if (!dist.isMassStart && target.total_time && target.personal_record) {
+        target.is_personal_record =
+          this._parseSeconds(target.total_time) < this._parseSeconds(target.personal_record);
+      } else {
+        target.is_personal_record = false;
+      }
+
       // Recompute positions and resort immediately — before highlight and finishing line
       this._recomputePositions(distComps);
       dist.processedRaces = Array.from(distComps.values()).sort((a, b) => a.position - b.position);
@@ -263,7 +275,7 @@ export class DataService {
         this._scheduleGroupDebounce(comp.distance_id);
       } else {
         dist.heatGroups.forEach(hg => {
-          hg.races = this._resolveRaces(comp.distance_id, hg.races.map(r => r.id));
+          hg.races = this._resolveRaces(comp.distance_id, hg.raceIds, true);
         });
       }
     } else {
@@ -315,6 +327,8 @@ export class DataService {
     if (!a || !b) return 9999;
     return Math.abs(this._parseSeconds(a) - this._parseSeconds(b));
   }
+
+  parseSeconds(t: string): number { return this._parseSeconds(t); }
 
   private _parseSeconds(t: string): number {
     const parts = t.split(':');
@@ -474,10 +488,18 @@ export class DataService {
     this.ngZone.run(() => this._displayedGroups.next(map));
   }
 
-  private _resolveRaces(distId: string, ids: string[]): CompetitorUpdate[] {
+  private _resolveRaces(distId: string, ids: string[], pinnedByLane = false): (CompetitorUpdate | null)[] {
     const distComps = this.competitorMap.get(distId);
-    if (!distComps) return [];
-    return ids.map(id => distComps.get(id)).filter((c): c is CompetitorUpdate => !!c);
+    if (!distComps) return pinnedByLane ? Array(LANE_ORDER_KEYS.length).fill(null) : [];
+    const resolved = ids.map(id => distComps.get(id)).filter((c): c is CompetitorUpdate => !!c);
+    if (!pinnedByLane) return resolved;
+    // Build fixed-slot array: one slot per known lane in LANE_ORDER_KEYS
+    const slots: (CompetitorUpdate | null)[] = LANE_ORDER_KEYS.map(lane =>
+      resolved.find(c => c.lane?.toLowerCase() === lane) ?? null
+    );
+    // Append any competitors whose lane is not in LANE_ORDER
+    const extra = resolved.filter(c => !(c.lane?.toLowerCase() in LANE_ORDER));
+    return [...slots, ...extra];
   }
 
   private _publishState() {

@@ -120,13 +120,15 @@ def _process(raw: dict) -> dict:
                 laps = laps[1:]  # omit warmup
 
             total_time = ""
-            formatted_total_time = "No Time"
+            formatted_total_time = ""
             if laps:
                 total_time = sorted(laps, key=lambda l: l["time"])[-1]["time"]
                 formatted_total_time = _format_time(total_time)
 
             lane = "black" if is_mass_start else (race.get("lane") or "black")
-            lap_times = [lap.get("lapTime", "") for lap in laps]
+            lap_times = [_format_time(lap.get("lapTime", "")) for lap in laps]
+            raw_pr = race["competitor"].get("personalRecord") or ""
+            personal_record = _format_time(raw_pr) if raw_pr else None
 
             processed.append({
                 "start_number": race["competitor"]["startNumber"],
@@ -139,6 +141,7 @@ def _process(raw: dict) -> dict:
                 "lane": lane,
                 "formatted_total_time": formatted_total_time,
                 "lap_times": lap_times,
+                "personal_record": personal_record,
                 "laps_remaining": None,
                 "finished_rank": None,
             })

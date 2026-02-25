@@ -46,6 +46,10 @@ export interface CompetitorUpdate {
   group_number?: number | null;
   /** Computed by frontend grouping logic */
   gap_to_above?: string | null;
+  /** Personal record time string (formatted, backend-provided); null if not set */
+  personal_record: string | null;
+  /** Computed by frontend: true when finished and total_time < personal_record */
+  is_personal_record: boolean;
 }
 
 // ── Frontend view state ───────────────────────────────────────────────────────
@@ -84,5 +88,8 @@ export interface StandingsGroup {
 /** Resolved heat group for rendering */
 export interface HeatGroup {
   heat: number;
-  races: CompetitorUpdate[];
+  /** Authoritative race ID list from distance_meta; used for re-resolution on competitor updates */
+  raceIds: string[];
+  /** Fixed-slot array: index corresponds to LANE_ORDER position; null = lane absent in this heat */
+  races: (CompetitorUpdate | null)[];
 }

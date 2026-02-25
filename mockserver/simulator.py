@@ -64,7 +64,7 @@ NON_MASS_DISTANCES = [
     {
         "name": "100 meter",
         "event_number": 1.0,
-        "first_lap_meters": 100.0,
+        "first_lap_meters": 100.0,   # 100 % 400 = 100
         "lap_meters": 400.0,
         "heats": [
             (1, ["white", "yellow"]),
@@ -75,7 +75,7 @@ NON_MASS_DISTANCES = [
     {
         "name": "500 meter",
         "event_number": 2.0,
-        "first_lap_meters": 500.0,
+        "first_lap_meters": 100.0,   # 500 % 400 = 100
         "lap_meters": 400.0,
         "heats": [
             (1, ["white", "yellow"]),
@@ -85,7 +85,7 @@ NON_MASS_DISTANCES = [
     {
         "name": "1000 meter",
         "event_number": 3.0,
-        "first_lap_meters": 1000.0,
+        "first_lap_meters": 200.0,   # 1000 % 400 = 200
         "lap_meters": 400.0,
         "heats": [
             (1, ["white", "yellow", "blue", "red"]),
@@ -95,7 +95,7 @@ NON_MASS_DISTANCES = [
     {
         "name": "1500 meter",
         "event_number": 4.0,
-        "first_lap_meters": 1500.0,
+        "first_lap_meters": 300.0,   # 1500 % 400 = 300
         "lap_meters": 400.0,
         "heats": [
             (1, ["white", "yellow", "blue", "red"]),
@@ -127,13 +127,13 @@ log.info("Live mass-start distance id: %s", _live_dist_id)
 # ── time helpers ──────────────────────────────────────────────────────────────
 
 def _fmt(total_seconds: float) -> str:
-    """Format seconds → HH:MM:SS.7f matching source-data format."""
+    """Format seconds → HH:MM:SS.fff (3 decimal places)."""
     total_seconds = max(0.0, total_seconds)
     h = int(total_seconds // 3600)
     rem = total_seconds - h * 3600
     m = int(rem // 60)
     s = rem - m * 60
-    return f"{h:02d}:{m:02d}:{s:010.7f}"
+    return f"{h:02d}:{m:02d}:{s:06.3f}"
 
 
 # ── per-competitor simulation state ──────────────────────────────────────────
@@ -160,6 +160,19 @@ _dist_finished: dict[str, bool] = {}
 _race_starts: dict[str, float] = {}
 
 
+def _total_laps_for(defn: dict) -> int:
+    """Total number of laps for a timed distance definition."""
+    first_m = defn["first_lap_meters"]
+    # distance_meters is derivable from the name
+    name = defn["name"]
+    m = __import__("re").search(r"(\d+)", name)
+    dist_m = float(m.group(1)) if m else first_m
+    if dist_m <= first_m:
+        return 1
+    remaining = dist_m - first_m
+    return 1 + int(round(remaining / defn["lap_meters"]))
+
+
 def _build_non_mass_distances(now: float) -> list[dict]:
     """Build non-mass-start distance dicts and initialise their sims."""
     distances = []
@@ -167,9 +180,28 @@ def _build_non_mass_distances(now: float) -> list[dict]:
     for defn in NON_MASS_DISTANCES:
         dist_id = str(uuid.uuid4())
         races = []
+        # pre-compute expected total laps and distance meters for this defn
+        name = defn["name"]
+        import re as _re
+        m = _re.search(r"(\d+)", name)
+        dist_meters = float(m.group(1)) if m else defn["first_lap_meters"]
+        total_laps = _total_laps_for(defn)
+
         for heat_num, lane_colors in defn["heats"]:
             for i, lane in enumerate(lane_colors):
                 race_id = str(uuid.uuid4())
+                # ~50% of competitors get a personal record
+                # PR is set slightly above their expected time so ~half will beat it
+                speed = random.uniform(NMS_SPEED_MIN, NMS_SPEED_MAX)
+                expected_secs = dist_meters / speed
+                # 1-in-2 chance: set PR between expected*1.0 and expected*1.15 (beatable)
+                # 1-in-2 chance: set PR between expected*0.85 and expected*1.0 (not beatable)
+                if random.random() < 0.5:
+                    pr_secs = expected_secs * random.uniform(1.01, 1.15)  # beatable PR
+                else:
+                    pr_secs = expected_secs * random.uniform(0.85, 0.99)  # unbeatable PR
+                personal_record = _fmt(pr_secs) if random.random() < 0.7 else None
+
                 races.append({
                     "id": race_id,
                     "competitor": {
@@ -179,6 +211,7 @@ def _build_non_mass_distances(now: float) -> list[dict]:
                         "category": "SEN",
                         "nationality": "NED",
                         "clubCode": "DEV",
+                        "personalRecord": personal_record,
                     },
                     "heat": heat_num,
                     "lane": lane,
@@ -188,20 +221,16 @@ def _build_non_mass_distances(now: float) -> list[dict]:
                     "invalidReason": "",
                     "status": 0,
                     "time": "00:00:00",
-                    "personalRecord": None,
+                    "personalRecord": personal_record,
                     "laps": [],
                 })
                 start_num += 1
 
-                # Init sim for this competitor
-                speed = random.uniform(NMS_SPEED_MIN, NMS_SPEED_MAX)
                 first_m = defn["first_lap_meters"]
                 lap_m = defn["lap_meters"]
                 first_secs = first_m / speed
                 jitter = random.uniform(0.0, 2.0)
-                # All defined races (100m/500m/1000m/1500m) have first_lap == full distance,
-                # so meters_remaining=0 after the first lap (single-lap sprint).
-                # lap_meters is retained for any future multi-lap distance definitions.
+                meters_remaining = dist_meters - first_m  # 0 for 100m, 400 for 500m, etc.
 
                 _sims[race_id] = CompetitorSim(
                     race_id=race_id,
@@ -212,7 +241,7 @@ def _build_non_mass_distances(now: float) -> list[dict]:
                     laps_done=0,
                     last_committed_time=0.0,
                     is_mass_start=False,
-                    meters_remaining=0.0,
+                    meters_remaining=meters_remaining,
                     lap_meters=lap_m,
                 )
 
@@ -222,6 +251,7 @@ def _build_non_mass_distances(now: float) -> list[dict]:
             "eventNumber": defn["event_number"],
             "isLive": True,
             "races": races,
+            "_total_laps": total_laps,  # internal: used for completion check
         }
         _dist_finished[dist_id] = False
         _race_starts[dist_id] = now
@@ -357,7 +387,16 @@ def _tick() -> None:
         if _dist_finished.get(dist_id):
             continue
         dist_sims = [s for s in _sims.values() if s.dist_id == dist_id]
-        if dist_sims and all(s.finished for s in dist_sims):
+        if not dist_sims:
+            continue
+        required_laps = dist.get("_total_laps")
+        if required_laps is not None:
+            # timed distance: all competitors must have completed all required laps
+            all_done = all(s.laps_done >= required_laps for s in dist_sims)
+        else:
+            # mass start: all competitors marked finished
+            all_done = all(s.finished for s in dist_sims)
+        if all_done:
             dist["isLive"] = False
             _dist_finished[dist_id] = True
             log.info("Distance '%s' finished — all competitors done", dist.get("name"))
