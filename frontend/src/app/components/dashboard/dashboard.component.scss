@@ -1,3 +1,7 @@
+@use './management-popup.scss'; // Use management popup styles
+
+// Removed global styles import; styles.scss should be used only in global styles
+
 // Override CoreUI's overflow:hidden on accordion-item host so body scales to fit content
 :host ::ng-deep c-accordion-item {
   overflow: visible !important;
@@ -745,34 +749,4 @@
   background-color: var(--cui-warning, #f9b115);
   color: #212529;
   letter-spacing: 0.02em;
-}// ===== SKELETON =====
-@keyframes shimmer {
-  0%   { background-position: -400px 0; }
-  100% { background-position:  400px 0; }
-}
-%skeleton-base {
-  background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
-  background-size: 400px 100%;
-  animation: shimmer 1.4s infinite linear;
-  border-radius: 4px;
-}
-.skeleton-block {
-  @extend %skeleton-base;
-}
-.skeleton-title    { @extend %skeleton-base; width: 160px; height: 1.25rem; }
-.skeleton-title-sm { @extend %skeleton-base; width: 120px; height: 1rem; }
-.skeleton-badge    { @extend %skeleton-base; width: 56px;  height: 1.25rem; border-radius: 99px; }
-.skeleton-text     { @extend %skeleton-base; display: inline-block; }
-.skeleton-accordion {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-}
-.skeleton-accordion-header { border-bottom: 1px solid #dee2e6; }
-
-// Force line-height: 1 on all relevant containers for perfect vertical alignment of lap time badges and placeholders.
-.race-item-laps,
-.lap-times-strip,
-.lap-time-badge,
-.lap-time-placeholder {
-  line-height: 1;
 }

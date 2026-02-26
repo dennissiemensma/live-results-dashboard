@@ -7,6 +7,7 @@ import {
   ProcessedDistance,
   StandingsGroup,
 } from '../models/data.models';
+import { HttpClient } from '@angular/common/http';
 
 export interface BackendStatus {
   status: 'Disconnected' | 'Connecting...' | 'Connected' | 'Error';
@@ -42,6 +43,7 @@ const MAX_DEBUG_ENTRIES = 200;
 export class DataService {
   private socket$: WebSocketSubject<any> | null = null;
   private readonly BACKEND_URL = `ws://${window.location.hostname}:5000/ws`;
+  private readonly BACKEND_HTTP_URL = `http://${window.location.hostname}:5000`;
 
   private _status = new BehaviorSubject<BackendStatus>({ status: 'Disconnected', url: '', interval: null });
   public status$ = this._status.asObservable();
@@ -152,8 +154,21 @@ export class DataService {
   private renderLoopRunning = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private ngZone: NgZone) {
+  constructor(private ngZone: NgZone, private http: HttpClient) {
     this.connect();
+  }
+
+  // Management API methods
+  manageGet(path: string, apiKey: string) {
+    return this.http.get(`${this.BACKEND_HTTP_URL}/manage/${path}`, {
+      headers: { 'x-api-key': apiKey }
+    });
+  }
+
+  managePost(path: string, apiKey: string, body: any) {
+    return this.http.post(`${this.BACKEND_HTTP_URL}/manage/${path}`, body, {
+      headers: { 'x-api-key': apiKey }
+    });
   }
 
   connect() {

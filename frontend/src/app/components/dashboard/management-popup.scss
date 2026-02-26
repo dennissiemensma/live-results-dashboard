@@ -1,0 +1,40 @@
+// Management popup styles split from dashboard.component.scss for modularity
+.management-popup-float {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1200;
+  pointer-events: none;
+}
+.management-popup-window {
+  position: absolute;
+  top: 60px;
+  right: 40px;
+  min-width: 340px;
+  max-width: 420px;
+  background: #23272b;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  border: 1px solid #444;
+  color: #fff;
+  pointer-events: auto;
+  animation: popup-fade-in 0.25s cubic-bezier(0.4,0,0.2,1);
+  z-index: 1201; /* Ensure above backdrop */
+}
+.management-popup-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.18);
+  z-index: 1200;
+  pointer-events: auto;
+}
+@keyframes popup-fade-in {
+  from { opacity: 0; transform: translateY(-24px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+

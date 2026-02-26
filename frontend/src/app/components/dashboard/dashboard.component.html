@@ -13,6 +13,8 @@
                : status.status === 'Error' ? 'danger'
                : 'secondary'"
         [class.pulse-badge]="status.status === 'Connecting...'"
+        (click)="onStatusBadgeClick()"
+        style="cursor:pointer"
       >{{ status.status }}</c-badge>
     }
     <!-- Show server updates button sits next to connection status -->
@@ -32,73 +34,75 @@
         Last change received: {{ secondsSinceUpdate$ | async }}s ago
       }
     </span>
-    <div class="d-flex align-items-center gap-2 ms-auto">
-      <!-- Section label + separator -->
-      <span class="topbar-section-label">Mass Start Settings</span>
-      <div class="topbar-section-sep"></div>
-      <div class="setting-group">
-        <label class="small text-white-50 text-nowrap mb-0 setting-label" for="groupThresholdInput">Max seconds gap between groups</label>
-        <input
-          id="groupThresholdInput"
-          type="number"
-          min="0" max="10" step="0.5"
-          class="form-control form-control-sm threshold-input"
-          [value]="dataService.groupThreshold"
-          (change)="onThresholdChange($event)"
-        />
-        <span class="small text-white-50">s</span>
-        <div class="setting-popover">
-          <div class="setting-popover-title">Max seconds gap between groups</div>
-          <div class="setting-popover-body">Minimum time difference (in seconds) between two competitors <strong>on the same lap</strong> for them to be placed in <strong>separate</strong> standings groups. <br><br>Lower values create more groups; 0 puts every competitor in their own group.<br><br>For comparison: Marathon races maintain a <strong>two second gap</strong> to indicate when a group is formed and which competitors are part of it.</div>
+    @if (hasMassStart$ | async) {
+      <div class="d-flex align-items-center gap-2 ms-auto">
+        <!-- Section label + separator -->
+        <span class="topbar-section-label">Mass Start Settings</span>
+        <div class="topbar-section-sep"></div>
+        <div class="setting-group">
+          <label class="small text-white-50 text-nowrap mb-0 setting-label" for="groupThresholdInput">Max seconds gap between groups</label>
+          <input
+            id="groupThresholdInput"
+            type="number"
+            min="0" max="10" step="0.5"
+            class="form-control form-control-sm threshold-input"
+            [value]="dataService.groupThreshold"
+            (change)="onThresholdChange($event)"
+          />
+          <span class="small text-white-50">s</span>
+          <div class="setting-popover">
+            <div class="setting-popover-title">Max seconds gap between groups</div>
+            <div class="setting-popover-body">Minimum time difference (in seconds) between two competitors <strong>on the same lap</strong> for them to be placed in <strong>separate</strong> standings groups. <br><br>Lower values create more groups; 0 puts every competitor in their own group.<br><br>For comparison: Marathon races maintain a <strong>two second gap</strong> to indicate when a group is formed and which competitors are part of it.</div>
+          </div>
+        </div>
+        <div class="setting-group ms-2">
+          <label class="small text-white-50 text-nowrap mb-0 setting-label" for="maxGroupsInput">Max groups</label>
+          <input
+            id="maxGroupsInput"
+            type="number"
+            min="0" step="1"
+            class="form-control form-control-sm threshold-input"
+            [value]="dataService.maxGroups"
+            (change)="onMaxGroupsChange($event)"
+          />
+          <div class="setting-popover">
+            <div class="setting-popover-title">Max groups</div>
+            <div class="setting-popover-body">Maximum number of standings groups to display in the group strip. Groups are based on the <i>Max seconds gap between groups</i> set to the left. <br><br>Competitors beyond the last group are collected into a "Tail of the race" group. <br><br>Set to 0 to disable grouping entirely.</div>
+          </div>
+        </div>
+        <div class="setting-group ms-2">
+          <label class="small text-white-50 text-nowrap mb-0 setting-label" for="lapVarianceInput">Lap Δ</label>
+          <input
+            id="lapVarianceInput"
+            type="number"
+            min="0" max="50" step="1"
+            class="form-control form-control-sm threshold-input"
+            [value]="dataService.lapVarianceThreshold"
+            (change)="onLapVarianceChange($event)"
+          />
+          <span class="small text-white-50">%</span>
+          <div class="setting-popover">
+            <div class="setting-popover-title">Lap variance threshold</div>
+            <div class="setting-popover-body">Percentage difference between <strong>consecutive lap times</strong> used to colour lap badges. <br><br><span class="popover-badge popover-badge-green">green</span> → Within threshold <br><span class="popover-badge popover-badge-orange">orange</span> → Slower than threshold <br><span class="popover-badge popover-badge-purple">purple</span> → Faster than threshold</div>
+            <div class="setting-popover-body setting-popover-example">E.g. at 5%: a previous lap of 30.0 s means slower &gt; 31.5 s turns orange, faster &lt; 28.5 s turns purple.</div>
+          </div>
+        </div>
+        <div class="setting-group ms-2">
+          <label class="small text-white-50 text-nowrap mb-0 setting-label" for="showLapTimesInput">Lap times</label>
+          <input
+            id="showLapTimesInput"
+            type="checkbox"
+            class="form-check-input threshold-checkbox"
+            [checked]="dataService.showMassStartLapTimes"
+            (change)="onShowLapTimesChange($event)"
+          />
+          <div class="setting-popover">
+            <div class="setting-popover-title">Show lap times</div>
+            <div class="setting-popover-body">Show or hide the lap time badge strip on each mass-start competitor row. Hiding lap times gives a cleaner view during busy races.</div>
+          </div>
         </div>
       </div>
-      <div class="setting-group ms-2">
-        <label class="small text-white-50 text-nowrap mb-0 setting-label" for="maxGroupsInput">Max groups</label>
-        <input
-          id="maxGroupsInput"
-          type="number"
-          min="0" step="1"
-          class="form-control form-control-sm threshold-input"
-          [value]="dataService.maxGroups"
-          (change)="onMaxGroupsChange($event)"
-        />
-        <div class="setting-popover">
-          <div class="setting-popover-title">Max groups</div>
-          <div class="setting-popover-body">Maximum number of standings groups to display in the group strip. Groups are based on the <i>Max seconds gap between groups</i> set to the left. <br><br>Competitors beyond the last group are collected into a "Tail of the race" group. <br><br>Set to 0 to disable grouping entirely.</div>
-        </div>
-      </div>
-      <div class="setting-group ms-2">
-        <label class="small text-white-50 text-nowrap mb-0 setting-label" for="lapVarianceInput">Lap Δ</label>
-        <input
-          id="lapVarianceInput"
-          type="number"
-          min="0" max="50" step="1"
-          class="form-control form-control-sm threshold-input"
-          [value]="dataService.lapVarianceThreshold"
-          (change)="onLapVarianceChange($event)"
-        />
-        <span class="small text-white-50">%</span>
-        <div class="setting-popover">
-          <div class="setting-popover-title">Lap variance threshold</div>
-          <div class="setting-popover-body">Percentage difference between <strong>consecutive lap times</strong> used to colour lap badges. <br><br><span class="popover-badge popover-badge-green">green</span> → Within threshold <br><span class="popover-badge popover-badge-orange">orange</span> → Slower than threshold <br><span class="popover-badge popover-badge-purple">purple</span> → Faster than threshold</div>
-          <div class="setting-popover-body setting-popover-example">E.g. at 5%: a previous lap of 30.0 s means slower &gt; 31.5 s turns orange, faster &lt; 28.5 s turns purple.</div>
-        </div>
-      </div>
-      <div class="setting-group ms-2">
-        <label class="small text-white-50 text-nowrap mb-0 setting-label" for="showLapTimesInput">Lap times</label>
-        <input
-          id="showLapTimesInput"
-          type="checkbox"
-          class="form-check-input threshold-checkbox"
-          [checked]="dataService.showMassStartLapTimes"
-          (change)="onShowLapTimesChange($event)"
-        />
-        <div class="setting-popover">
-          <div class="setting-popover-title">Show lap times</div>
-          <div class="setting-popover-body">Show or hide the lap time badge strip on each mass-start competitor row. Hiding lap times gives a cleaner view during busy races.</div>
-        </div>
-      </div>
-    </div>
+    }
   </header>
   <!-- ===== ERRORS ===== -->
   <div class="px-4 pt-2">
@@ -385,4 +389,42 @@
       }
     }
   </main>
+  <!-- ===== MANAGEMENT POPUP ===== -->
+  @if (managementPopupVisible) {
+    <div class="management-popup-float">
+      <div class="management-popup-window">
+        <div class="management-popup-header">
+          <span class="fw-bold">Manage Backend Settings</span>
+          <button class="btn btn-sm btn-secondary float-end" (click)="closeManagementPopup()">×</button>
+        </div>
+        <div class="management-popup-body">
+          <div class="mb-2">
+            <label>Password:</label>
+            <input type="password" [(ngModel)]="managementPassword" class="form-control form-control-sm" (change)="fetchManagementStatus()" />
+          </div>
+          <div class="mb-2">
+            <label>Data Source URL:</label>
+            <input type="text" [(ngModel)]="managementUrl" class="form-control form-control-sm" />
+          </div>
+          <div class="mb-2">
+            <label>Fetch Interval (seconds):</label>
+            <input type="number" [(ngModel)]="managementInterval" class="form-control form-control-sm" min="0.1" step="0.1" />
+          </div>
+          <div class="mb-2">
+            <label>Polling:</label>
+            <span class="badge bg-success" *ngIf="managementPolling">Active</span>
+            <span class="badge bg-danger" *ngIf="!managementPolling">Stopped</span>
+            <button class="btn btn-sm btn-outline-success ms-2" (click)="setPolling('start')" [disabled]="managementPolling">Start</button>
+            <button class="btn btn-sm btn-outline-danger ms-2" (click)="setPolling('stop')" [disabled]="!managementPolling">Stop</button>
+          </div>
+          <div class="mb-2">
+            <button class="btn btn-sm btn-primary" (click)="saveManagementSettings()">Save Settings</button>
+            <button class="btn btn-sm btn-warning ms-2" (click)="resetManagementData()">Reset Data</button>
+          </div>
+          <div class="mb-2 text-danger" *ngIf="managementError">{{ managementError }}</div>
+        </div>
+      </div>
+      <div class="management-popup-backdrop" (click)="closeManagementPopup()"></div>
+    </div>
+  }
 </div>

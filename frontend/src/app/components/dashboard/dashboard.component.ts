@@ -22,6 +22,7 @@ import {
   stagger,
   state,
 } from '@angular/animations';
+import { FormsModule } from '@angular/forms';
 
 // raceListAnimation: tracks list identity changes so Angular re-applies
 // per-row CSS classes (pos-up / pos-down) on reorder.
@@ -65,6 +66,7 @@ export const groupCardAnimation = trigger('groupCard', [
     CardModule,
     GridModule,
     SharedModule,
+    FormsModule,
   ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
@@ -84,6 +86,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   selectedRaceId: string | null = null;
   debugVisible = false;
   debugLog$: Observable<DebugEntry[]>;
+
+  // Management popup state
+  managementPopupVisible = false;
+  managementPassword = '';
+  managementError: string | null = null;
+  managementUrl = '';
+  managementInterval = 1;
+  managementPolling = true;
+
+  // Hide mass start settings if no mass start present
+  hasMassStart$: Observable<boolean>;
 
   toggleDebug(): void {
     this.debugVisible = !this.debugVisible;
@@ -143,7 +156,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.errors$ = this.dataService.errors$;
     this.displayedGroups$ = this.dataService.displayedGroups$;
     this.debugLog$ = this.dataService.debugLog$;
-
+    this.hasMassStart$ = this.dataService.processedData$.pipe(
+      map(distances => !!distances?.some(d => d.isMassStart))
+    );
     this.sortedDistances$ = this.dataService.processedData$.pipe(
       map((distances) => {
         if (!distances || distances.length === 0) return [];
@@ -159,7 +174,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         return sorted;
       }),
     );
-
     this.secondsSinceUpdate$ = combineLatest([
       this.dataService.lastDataReceived$,
       timer(0, 1000),
@@ -388,5 +402,48 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (groupIndex === 2) return 'd-none d-md-block';
     if (groupIndex === 3) return 'd-none d-lg-block';
     return 'd-none d-xl-block';
+  }
+
+  closeManagementPopup(): void {
+    this.managementPopupVisible = false;
+  }
+
+  resetManagementData(): void {
+    this.managementError = null;
+    this.dataService.managePost('reset', this.managementPassword, {}).subscribe({
+      error: () => { this.managementError = 'Failed to reset data.'; }
+    });
+  }
+
+  setPolling(action: 'start' | 'stop'): void {
+    this.managementError = null;
+    this.dataService.managePost('polling', this.managementPassword, { action }).subscribe({
+      next: (res: any) => { this.managementPolling = res.polling; },
+      error: () => { this.managementError = 'Failed to update polling state.'; }
+    });
+  }
+
+  saveManagementSettings(): void {
+    this.managementError = null;
+    this.dataService.managePost('source_url', this.managementPassword, { data_source_url: this.managementUrl }).subscribe({
+      error: () => { this.managementError = 'Failed to update source URL.'; }
+    });
+    this.dataService.managePost('interval', this.managementPassword, { data_source_interval: this.managementInterval }).subscribe({
+      error: () => { this.managementError = 'Failed to update interval.'; }
+    });
+  }
+
+  onStatusBadgeClick(): void {
+    // Placeholder: implement logic as needed
+    // For now, just toggle management popup
+    this.managementPopupVisible = !this.managementPopupVisible;
+  }
+
+  fetchManagementStatus(): void {
+    // Placeholder: implement logic as needed
+    // For now, just clear management error
+    this.managementError = null;
+    // Optionally, fetch status from backend
+    this.dataService.status$.subscribe();
   }
 }

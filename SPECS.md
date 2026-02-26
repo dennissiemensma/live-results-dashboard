@@ -18,6 +18,11 @@ Each component:
 - [x] On WS connect: send `status` message with `data_source_url` and `data_source_interval`; replay latest processed state — sends `event_name`, one `distance_meta` per distance, then **all** `competitor_update` entries including those with no `total_time` (full start list); the no-time suppression rule applies only to live diff broadcasts, not the initial replay; each replayed `competitor_update` includes the full `lap_times` array with all laps completed so far — this ensures timed-distance competitors' lap history is fully restored on reconnect/refresh
 - [x] Log when new data is received and when updates are sent; log each competitor_update sent (start number, name, laps, total time, formatted total time)
 
+### Data management endpoints (backend)
+- [x] Add endpoints for managing data source URL (`GET`/`POST`), fetch interval (`GET`/`POST`), reset data (`POST`), and start/stop polling (`POST`)
+- [x] Add new env var `MANAGEMENT_PASSWORD` for password-protected access to these endpoints
+- [x] Endpoints require password (header: X-Management-Password)
+
 ### Data processing (backend)
 - [x] Parse raw source data on each fetch; diff against previous parsed state
 - [x] Mass start detection: distance with >2 races all sharing the same `heat`
@@ -63,6 +68,15 @@ Each component:
 - [x] Max groups input in top bar: numeric field (default 4); `0` disables the group strip **and** the group separator lines in the standings entirely; competitors beyond the last group are collected into a synthetic "Tail of the race" group; persisted in localStorage
 - [x] Each UI setting in the top bar (**Max seconds gap between groups**, Max groups, Lap Δ, Lap times) and the **Show server updates** button each have a CSS hover popover anchored below them; hovering reveals a popover with the setting name as a bold title and a description; the Lap Δ popover description uses inline colored badges (green/orange/purple) to illustrate the three states, plus a second paragraph with a concrete example; the popover has an upward-pointing arrow; implemented in pure CSS (no JS); no special cursor on the label
 - [x] **Lap times** toggle: checkbox in the top bar (default on); when unchecked the lap-time badge strip (including placeholders) is hidden but the **lap counter badge remains visible and vertically aligned across all rows**; setting persisted in localStorage
+- [ ] Hide all mass start settings in the top bar when there is no mass start in any of the distances
+
+### Management popup (frontend)
+- [x] Add popup for managing backend settings: data source URL, interval, reset button, start/stop toggle, password input
+- [x] Display latest backend "status" info (URL, interval, polling state) in the popup
+- [x] Trigger popup by clicking the "connected" status badge
+- [x] Show errors/messages from backend in the popup
+- [x] Frontend reads current backend settings (URL, interval, polling state) from backend on popup open and after save/reset
+- [ ] Management settings popup floats in a window visually similar to the server updates panel (same style, z-index, and animation)
 
 #### Rendering
 - [x] HTML page title: `<event name> | Live Results Dashboard`; updated reactively when event name changes

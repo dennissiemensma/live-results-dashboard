@@ -1,3 +1,27 @@
 /* You can add global styles to this file, and also import other style files */
 
 @use '@coreui/coreui/scss/coreui';
+
+// Skeleton styles moved from dashboard.component.scss for global use
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+%skeleton-base {
+  background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 4px;
+}
+.skeleton-block {
+  @extend %skeleton-base;
+}
+.skeleton-title    { @extend %skeleton-base; width: 160px; height: 1.25rem; }
+.skeleton-title-sm { @extend %skeleton-base; width: 120px; height: 1rem; }
+.skeleton-badge    { @extend %skeleton-base; width: 56px;  height: 1.25rem; border-radius: 99px; }
+.skeleton-text     { @extend %skeleton-base; display: inline-block; }
+.skeleton-accordion {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+}
+.skeleton-accordion-header { border-bottom: 1px solid #dee2e6; }
