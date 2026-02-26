@@ -1,0 +1,9 @@
+tunnel: mytunnel
+credentials-file: /etc/cloudflared/tunnel-credentials.json
+
+ingress:
+  - hostname: live.example.com
+    service: http://frontend:8888
+  - hostname: live-proxy.example.com
+    service: http://backend:5000
+  - service: http_status:404

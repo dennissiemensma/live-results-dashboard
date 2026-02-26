@@ -1,5 +1,6 @@
 services:
   backend:
+    container_name: backend
     build:
       context: ./backend
       dockerfile: Containerfile
@@ -7,10 +8,13 @@ services:
       - "5000:5000"
     volumes:
       - ./backend/src:/app
+      # Mount secret file for password
+      - ./backend_management_password.txt:/run/secrets/backend_management_password:ro
     command: uvicorn app:app --host 0.0.0.0 --port 5000 --reload
     environment:
       - DATA_SOURCE_URL=http://mockserver:8080/api/data
       - DATA_SOURCE_INTERVAL=1
+      - MANAGEMENT_PASSWORD_FILE=/run/secrets/backend_management_password
     depends_on:
       mockserver:
         condition: service_healthy
@@ -19,6 +23,7 @@ services:
 
   # http://localhost:4200 - development build of the frontend with hot reloading
   frontend-dev:
+    container_name: frontend-dev
     build:
       context: ./frontend
       dockerfile: Containerfile
@@ -36,6 +41,7 @@ services:
 
   # http://localhost:8888 - production build of the frontend
   frontend:
+    container_name: frontend
     build:
       context: ./frontend
       dockerfile: Containerfile
@@ -47,17 +53,39 @@ services:
       - dashboard-net
 
   mockserver:
+    container_name: mockserver
     build:
       context: ./mockserver
       dockerfile: Containerfile
     volumes:
       - ./mockserver:/app
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/data')"]
+      test: [ "CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/data')" ]
       interval: 3s
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - dashboard-net
+
+  tunnel:
+    ### Setup first:
+    ### docker run -it --rm --name cloudflared-login alpine:latest apk add --no-cache wget && wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 && chmod +x cloudflared-linux-amd64 && ./cloudflared-linux-amd64 login && rm -f cloudflared-linux-amd64
+    ### docker run -it --rm --name cloudflared-login alpine:latest apk add --no-cache wget && wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 && chmod +x cloudflared-linux-amd64 && ./cloudflared-linux-amd64 tunnel create --credentials-file /tmp/tunnel-credentials.json mytunnel && cat /tmp/tunnel-credentials.json && rm -f /tmp/tunnel-credentials.json && rm -f cloudflared-linux-amd64
+    ### docker exec -it tunnel cloudflared tunnel route dns mytunnel app.example.com
+    ### docker exec -it tunnel cloudflared tunnel info mytunnel
+    ### docker exec -it tunnel cloudflared tunnel route ip show
+    image: cloudflare/cloudflared:latest
+    container_name: tunnel
+    restart: unless-stopped
+    command: tunnel run
+    volumes:
+      - ./tunnel/config.yml:/etc/cloudflared/config.yml:ro
+      - ./tunnel/cert.pem:/etc/cloudflared/cert.pem:ro
+      - ./tunnel/tunnel-credentials.json:/etc/cloudflared/tunnel-credentials.json:ro
+    depends_on:
+      - frontend
+      - backend
     networks:
       - dashboard-net
 
