@@ -50,6 +50,7 @@ Each component:
 - [x] WebSocket to backend port `5000`
 - [x] nginx config in separate folder
 - [x] Reconnect every 5s on lost connection, show error
+- [x] Frontend must not hardcode backend URL. Pass backend URL as environment variable into the frontend container, similar to backend. Frontend reads this value at runtime and uses it for API/WebSocket connections. Container, compose, and code updated accordingly.
 
 ### Data layer
 - [x] Apply `distance_meta` and `competitor_update` messages to local state; `distance_meta` stores the authoritative `raceIds` list per heat group so that competitor cards can be resolved correctly on reconnect/refresh even before all competitor updates have been applied

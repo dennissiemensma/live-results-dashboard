@@ -5,6 +5,8 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 
 import { routes } from './app.routes';
 
+export const BACKEND_URL = (window as any).BACKEND_URL || '/api';
+
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
