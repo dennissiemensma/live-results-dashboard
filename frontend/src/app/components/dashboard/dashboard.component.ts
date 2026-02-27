@@ -195,6 +195,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       if (this.pulseTimeout) clearTimeout(this.pulseTimeout);
       this.pulseTimeout = setTimeout(() => (this.pulseActive = false), 2000);
     });
+    // Prefill backend URL from localStorage or default
+    const storedUrl = localStorage.getItem('backendUrl');
+    this.managementUrl = storedUrl || 'http://mockserver:8080/api/data';
   }
 
   ngOnDestroy() {
@@ -404,15 +407,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return 'd-none d-xl-block';
   }
 
+  onStatusBadgeClick(): void {
+    // When opening popup, prefill backend URL from localStorage or default
+    const storedUrl = localStorage.getItem('backendUrl');
+    this.managementUrl = storedUrl || 'http://mockserver:8080/api/data';
+    this.managementPopupVisible = !this.managementPopupVisible;
+  }
+
   closeManagementPopup(): void {
     this.managementPopupVisible = false;
   }
 
-  resetManagementData(): void {
+  fetchManagementStatus(): void {
     this.managementError = null;
-    this.dataService.managePost('reset', this.managementPassword, {}).subscribe({
-      error: () => { this.managementError = 'Failed to reset data.'; }
-    });
+    this.dataService.status$.subscribe();
   }
 
   setPolling(action: 'start' | 'stop'): void {
@@ -425,6 +433,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   saveManagementSettings(): void {
     this.managementError = null;
+    localStorage.setItem('backendUrl', this.managementUrl);
     this.dataService.managePost('source_url', this.managementPassword, { data_source_url: this.managementUrl }).subscribe({
       error: () => { this.managementError = 'Failed to update source URL.'; }
     });
@@ -433,17 +442,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  onStatusBadgeClick(): void {
-    // Placeholder: implement logic as needed
-    // For now, just toggle management popup
-    this.managementPopupVisible = !this.managementPopupVisible;
+  resetManagementData(): void {
+    this.managementError = null;
+    this.dataService.managePost('reset', this.managementPassword, {}).subscribe({
+      error: () => { this.managementError = 'Failed to reset data.'; }
+    });
   }
 
-  fetchManagementStatus(): void {
-    // Placeholder: implement logic as needed
-    // For now, just clear management error
-    this.managementError = null;
-    // Optionally, fetch status from backend
-    this.dataService.status$.subscribe();
+  saveFrontendConfig(): void {
+    localStorage.setItem('backendUrl', this.managementUrl);
+  }
+
+  get backendConnectedUrl(): string {
+    // Use the backend URL the frontend is connected to
+    return this.dataService['BACKEND_HTTP_URL'];
   }
 }

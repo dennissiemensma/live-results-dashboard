@@ -20,7 +20,7 @@ Each component:
 
 ### Data management endpoints (backend)
 - [x] Add endpoints for managing data source URL (`GET`/`POST`), fetch interval (`GET`/`POST`), reset data (`POST`), and start/stop polling (`POST`)
-- [x] Add new env var `MANAGEMENT_PASSWORD` for password-protected access to these endpoints
+- [x] Add new env var `MANAGEMENT_PASSWORD_FILE` for password-protected access to these endpoints
 - [x] Endpoints require password (header: X-Management-Password)
 
 ### Data processing (backend)
@@ -77,6 +77,8 @@ Each component:
 - [x] Show errors/messages from backend in the popup
 - [x] Frontend reads current backend settings (URL, interval, polling state) from backend on popup open and after save/reset
 - [ ] Management settings popup floats in a window visually similar to the server updates panel (same style, z-index, and animation)
+- [ ] [TODO] Add option in the frontend GUI to change the backend URL. Integrate this option into the backend settings dialog. The dialog must include appropriate padding for improved UI consistency. The backend URL change should be validated and persisted in localStorage, and the dialog should visually reflect the updated URL and padding.
+- [ ] [TODO] Add missing backend URL field to management popup. Add "Manage Frontend Settings" title above "Manage Backend Settings". Add button "Save frontend config". Rework polling buttons to a status badge toggle that acts as a button. Rename "Reset Data" to "Clear backend cache". Update "Save Settings" to "Save backend config".
 
 #### Rendering
 - [x] HTML page title: `<event name> | Live Results Dashboard`; updated reactively when event name changes
@@ -135,3 +137,6 @@ Each component:
 - [x] Timed distance competitors: each has a stable personal speed (m/s) with per-lap noise; lap split time computed from distance ÷ speed; ~70% of competitors have a `personalRecord`; ~50% of those records are set slightly above the competitor's expected time (beatable), ensuring some PR badges appear on finish
 - [x] Timed distances marked `isLive=False` only once **every** competitor has a lap time for **every** required lap of that distance; a distance where any competitor is still missing any lap time remains live
 - [x] All other distances from `example.json` are **not** included in the simulated output — only the mass-start distance and the four timed distances above
+
+### CORS
+- [ ] [TODO] Add CORS response header to allow all origins (Access-Control-Allow-Origin: *). Ensure all backend endpoints include this header for cross-origin requests.

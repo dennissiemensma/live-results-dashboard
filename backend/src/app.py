@@ -22,6 +22,7 @@ from contextlib import asynccontextmanager
 import httpx
 from aiocache import Cache
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,12 +33,17 @@ DATA_SOURCE_INTERVAL = float(os.environ.get("DATA_SOURCE_INTERVAL", "1"))
 
 cache = Cache(Cache.MEMORY)
 
-MANAGEMENT_PASSWORD = os.environ.get("MANAGEMENT_PASSWORD", "")
+MANAGEMENT_PASSWORD = None
+MANAGEMENT_PASSWORD_FILE = os.environ.get("MANAGEMENT_PASSWORD_FILE", "")
+# If MANAGEMENT_PASSWORD_FILE is a file path, read the file content
+if MANAGEMENT_PASSWORD_FILE and os.path.isfile(MANAGEMENT_PASSWORD_FILE):
+    with open(MANAGEMENT_PASSWORD_FILE, "r") as f:
+        MANAGEMENT_PASSWORD = f.read().strip()
 
 # Helper for password check
 async def check_management_password(request: Request):
     header_pw = request.headers.get("x-api-key")
-    if not header_pw or header_pw != MANAGEMENT_PASSWORD:
+    if not header_pw or header_pw != MANAGEMENT_PASSWORD or MANAGEMENT_PASSWORD is None:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -331,6 +337,15 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+# Add CORS middleware to allow all origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.websocket("/ws")

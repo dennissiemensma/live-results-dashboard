@@ -22,6 +22,10 @@
   pointer-events: auto;
   animation: popup-fade-in 0.25s cubic-bezier(0.4,0,0.2,1);
   z-index: 1201; /* Ensure above backdrop */
+  padding: 24px 24px 16px 24px;
+}
+.management-popup-body {
+  padding: 8px 0 0 0;
 }
 .management-popup-backdrop {
   position: fixed;
@@ -37,4 +41,3 @@
   from { opacity: 0; transform: translateY(-24px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-
