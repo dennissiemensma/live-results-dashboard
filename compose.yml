@@ -29,8 +29,6 @@ services:
       dockerfile: Containerfile
       target: build
     command: npm start -- --host 0.0.0.0 --poll 2000
-    environment:
-      BACKEND_URL: ws://localhost:5000/ws
     ports:
       - "4200:4200"
     depends_on:

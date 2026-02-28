@@ -44,13 +44,6 @@ Each component:
 - [x] `competitor_update`: one message per changed competitor; fields: `start_number`, `laps_count`, `total_time`, `distance_id`, `id`, `name`, `heat`, `lane`, `formatted_total_time`, `lap_times` (list of `lapTime` strings for each completed lap, in order), `laps_remaining`, `finished_rank`, `personal_record` (formatted time string or `null`); `position` and `position_change` are not sent — computed in frontend; **not sent when `total_time` is empty after the initial appearance** — first appearance (start list) is always sent regardless
 - [x] On each fetch cycle: send one `distance_meta` per changed distance, then one `competitor_update` per changed competitor
 
-### CORS
-- [ ] [TODO] Add CORS response header to allow all origins (Access-Control-Allow-Origin: *). Ensure all backend endpoints include this header for cross-origin requests.
-
-### Backend API Endpoints
-- Data retrieval endpoints (e.g. /api/results, /api/status, /api/events, /api/distances) do **not** require authentication.
-- Management endpoints (e.g. /api/manage/*) require authentication via password.
-
 ## Frontend
 - [x] Node 24 LTS + Angular + CoreUI
 - [x] Dev server on port `4200`; prod server on port `8888` (maps to `80` in container)
@@ -79,22 +72,18 @@ Each component:
 - [ ] Hide all mass start settings in the top bar when there is no mass start in any of the distances
 
 ### Management popup (frontend)
-- [x] Add popup for managing backend settings:
-    - **Connect to backend**: URL for the web client to connect the socket to (used by frontend for API/WebSocket)
-    - **Backend data source**: URL the backend uses for its data source (e.g., mockserver)
-    - Interval, reset button, start/stop toggle, password input
-- [x] Display latest backend "status" info (data source value, interval, polling state) in the popup
+- [x] Add popup for managing backend settings: data source URL, interval, reset button, start/stop toggle, password input
+- [x] Display latest backend "status" info (URL, interval, polling state) in the popup
 - [x] Trigger popup by clicking the "connected" status badge
 - [x] Show errors/messages from backend in the popup
-- [x] Frontend reads current backend settings (data source value, interval, polling state) from backend on popup open and after save/reset
-- [x] Management settings popup floats in a window visually similar to the server updates panel (same style, z-index, and animation)
-- [x] Add option in the frontend GUI to change the backend URL for the web client (socket/API). Integrate this option into the backend settings dialog. The dialog must include appropriate padding for improved UI consistency. The backend URL change should be validated and persisted in localStorage, and the dialog should visually reflect the updated URL and padding.
-- [x] Add missing backend data source value field to management popup. Add "Manage Frontend Settings" title above "Manage Backend Settings". Add button "Save frontend config". Rework polling buttons to a status badge toggle that acts as a button. Rename "Reset Data" to "Clear backend cache". Update "Save Settings" to "Save backend config".
-- [x] Rename label from "Backend URL" to "Connect to backend" everywhere in the management popup and related dialogs.
+- [x] Frontend reads current backend settings (URL, interval, polling state) from backend on popup open and after save/reset
+- [ ] Management settings popup floats in a window visually similar to the server updates panel (same style, z-index, and animation)
+- [ ] [TODO] Add option in the frontend GUI to change the backend URL. Integrate this option into the backend settings dialog. The dialog must include appropriate padding for improved UI consistency. The backend URL change should be validated and persisted in localStorage, and the dialog should visually reflect the updated URL and padding.
+- [ ] [TODO] Add missing backend URL field to management popup. Add "Manage Frontend Settings" title above "Manage Backend Settings". Add button "Save frontend config". Rework polling buttons to a status badge toggle that acts as a button. Rename "Reset Data" to "Clear backend cache". Update "Save Settings" to "Save backend config".
 
 #### Rendering
 - [x] HTML page title: `<event name> | Live Results Dashboard`; updated reactively when event name changes
-- [x] Top bar: event `name` + connection status badge + **Show server updates** button; dark/black background
+- [x] Top bar: event `name` + connection status badge + seconds since last update; dark/black background
 - [x] Each distance in full-width accordion, sorted by `event_number` descending; accordion body height scales to fit content; expanded accordion header uses dark slate (`#2c3e50`)
 - [x] Completed ("Done") accordion items are rendered at a mild reduced opacity (suggested: opacity 0.85) unless they are currently expanded; timed-distance content must remain clearly readable (avoid heavy dimming)
 - [x] Animate `is_live` badge; auto-expand live accordion on load (not on updates)
@@ -150,3 +139,5 @@ Each component:
 - [x] Timed distances marked `isLive=False` only once **every** competitor has a lap time for **every** required lap of that distance; a distance where any competitor is still missing any lap time remains live
 - [x] All other distances from `example.json` are **not** included in the simulated output — only the mass-start distance and the four timed distances above
 
+### CORS
+- [ ] [TODO] Add CORS response header to allow all origins (Access-Control-Allow-Origin: *). Ensure all backend endpoints include this header for cross-origin requests.
