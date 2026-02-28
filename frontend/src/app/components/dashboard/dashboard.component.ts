@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import { DataService, DebugEntry } from '../../services/data.service';
@@ -151,7 +151,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private dataSub: Subscription | null = null;
   private titleSub: Subscription | null = null;
 
-  constructor(public dataService: DataService, private titleService: Title, private changeDetectorRef: ChangeDetectorRef) {
+  constructor(public dataService: DataService, private titleService: Title) {
     this.status$ = this.dataService.status$;
     this.eventName$ = this.dataService.eventName$;
     this.errors$ = this.dataService.errors$;
@@ -179,7 +179,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.dataService.lastDataReceived$,
       timer(0, 1000),
     ]).pipe(
-      map(([last, _]) => Math.floor((Date.now() - last) / 1000)),
+      map(([lastReceived]) => {
+        if (!lastReceived) return 0;
+        return Math.floor((Date.now() - lastReceived) / 1000);
+      }),
     );
   }
 
