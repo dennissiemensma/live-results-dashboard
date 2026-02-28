@@ -8,13 +8,13 @@ services:
       - "5000:5000"
     volumes:
       - ./backend/src:/app
-    secrets:
-      - backend_management_password
+      # Mount secret file for password
+      - ./backend_management_password.txt:/run/secrets/backend_management_password:ro
     command: uvicorn app:app --host 0.0.0.0 --port 5000 --reload
     environment:
-      DATA_SOURCE_URL: http://mockserver:8080/api/data
-      DATA_SOURCE_INTERVAL: 1
-      MANAGEMENT_PASSWORD_FILE: /run/secrets/backend_management_password
+      - DATA_SOURCE_URL=http://mockserver:8080/api/data
+      - DATA_SOURCE_INTERVAL=1
+      - MANAGEMENT_PASSWORD_FILE=/run/secrets/backend_management_password
     depends_on:
       mockserver:
         condition: service_healthy
@@ -94,7 +94,3 @@ services:
 networks:
   dashboard-net:
     driver: bridge
-
-secrets:
-  backend_management_password:
-    file: ./backend_management_password.txt
