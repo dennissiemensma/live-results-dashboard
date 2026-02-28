@@ -91,7 +91,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   managementPopupVisible = false;
   managementPassword = '';
   managementError: string | null = null;
-  managementUrl = '';
+  backendUrl = '';
+  managementBackendDataSourceUrl = '';
   managementInterval = 1;
   managementPolling = true;
 
@@ -197,7 +198,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
     // Prefill backend URL from localStorage or default
     const storedUrl = localStorage.getItem('backendUrl');
-    this.managementUrl = storedUrl || 'http://mockserver:8080/api/data';
+    this.backendUrl = storedUrl || 'http://backend:5000/ws';
+    // Prefill backend data source from backend status if available
+    this.status$.subscribe(status => {
+      if (status?.url) {
+        this.managementBackendDataSourceUrl = status.url;
+      }
+    });
   }
 
   ngOnDestroy() {
@@ -400,23 +407,103 @@ export class DashboardComponent implements OnInit, OnDestroy {
    * xs shows 1, sm shows 2, md shows 3, lg shows 4, xl shows 5+
    */
   groupCardClass(groupIndex: number): string {
-    if (groupIndex === 0) return '';
-    if (groupIndex === 1) return 'd-none d-sm-block';
-    if (groupIndex === 2) return 'd-none d-md-block';
-    if (groupIndex === 3) return 'd-none d-lg-block';
-    return 'd-none d-xl-block';
+    if (groupIndex < 0) return '';
+    const size = Math.max(1, Math.min(5, this.getViewportSize()));
+    const base = 'd-none d-sm-block';
+    const show = `d-lg-none`;
+    const hide = `d-sm-none`;
+    return groupIndex < size ? show : hide;
+  }
+
+  /**
+   * Returns true when the competitor's race is currently live (in progress).
+   * - For mass start: isLive is true.
+   * - For timed distance: total_time is set and not yet marked as finished.
+   */
+  isRaceLive(race: CompetitorUpdate, distance: ProcessedDistance): boolean {
+    if (distance.isMassStart) return distance.isLive;
+    return !!race.total_time && distance.distanceMeters != null && !this.isTimedFinished(race, distance.distanceMeters);
+  }
+
+  /**
+   * Returns the CSS class for the status badge, based on the competitor's status.
+   * - green  → finished within target time
+   * - orange → finished but outside target time
+   * - red    → not finished, but time is up
+   * - grey   → not started or no result yet
+   */
+  statusBadgeClass(race: CompetitorUpdate, distance: ProcessedDistance): string {
+    if (distance.isMassStart) return distance.isLive ? 'bg-success' : 'bg-secondary';
+    if (distance.distanceMeters != null && this.isTimedFinished(race, distance.distanceMeters)) {
+      return 'bg-success';
+    }
+    return 'bg-secondary';
+  }
+
+  /**
+   * Returns the text for the status badge, indicating time or gap.
+   * - For finished competitors: elapsed time (e.g. "1:23.456").
+   * - For non-finished competitors: gap to leader (e.g. "+12.3").
+   * - For mass start: shows "LIVE" when isLive, else elapsed time.
+   */
+  statusBadgeText(race: CompetitorUpdate, distance: ProcessedDistance): string {
+    if (distance.isMassStart) return distance.isLive ? 'LIVE' : (distance.distanceMeters != null ? this.timedCumulativeTime(race, race.laps_count - 1) ?? '' : '');
+    if (distance.distanceMeters != null && this.isTimedFinished(race, distance.distanceMeters)) return this._formatElapsedTime(race.total_time);
+    const leaderGap = race.gap_to_above;
+    if (leaderGap == null) return '';
+    const gapSeconds = this._parseSeconds(leaderGap);
+    if (gapSeconds < 0) return '';
+    return '+' + this._formatElapsedTime(leaderGap);
+  }
+
+  private _formatElapsedTime(timeString: string): string {
+    const totalSeconds = this._parseSeconds(timeString);
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = Math.floor(totalSeconds % 60);
+    const ms = Math.floor((totalSeconds % 1) * 1000);
+    return `${mins}:${String(secs).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+  }
+
+  /**
+   * Returns the current viewport size as a number:
+   * - xs: 0, sm: 1, md: 2, lg: 3, xl: 4.
+   */
+  private getViewportSize(): number {
+    const width = window.innerWidth;
+    if (width < 576) return 0;  // xs
+    if (width < 768) return 1;  // sm
+    if (width < 992) return 2;  // md
+    if (width < 1200) return 3; // lg
+    return 4;                    // xl
   }
 
   onStatusBadgeClick(): void {
     // When opening popup, prefill backend URL from localStorage or default
     const storedUrl = localStorage.getItem('backendUrl');
-    this.managementUrl = storedUrl || 'http://mockserver:8080/api/data';
+    this.backendUrl = storedUrl || 'http://backend:5000/ws';
+    // Fetch settings from backend
+    this.dataService.fetchSettings().subscribe({
+      next: (settings: any) => {
+        this.managementBackendDataSourceUrl = settings.data_source_url;
+        this.managementInterval = settings.data_source_interval;
+        this.managementPolling = settings.polling;
+      },
+      error: () => {
+        this.managementError = 'Failed to fetch settings from backend.';
+      }
+    });
     this.managementPopupVisible = !this.managementPopupVisible;
   }
 
-  closeManagementPopup(): void {
-    this.managementPopupVisible = false;
+  /**
+   * Saves the current backend URL to localStorage and updates the data service.
+   * Called by the management popup's Save button.
+   */
+  saveFrontendConfig(): void {
+    localStorage.setItem('backendUrl', this.backendUrl);
+    this.dataService.setBackendUrl();
   }
+
 
   fetchManagementStatus(): void {
     this.managementError = null;
@@ -433,8 +520,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   saveManagementSettings(): void {
     this.managementError = null;
-    localStorage.setItem('backendUrl', this.managementUrl);
-    this.dataService.managePost('source_url', this.managementPassword, { data_source_url: this.managementUrl }).subscribe({
+    this.dataService.managePost('source_url', this.managementPassword, { data_source_url: this.managementBackendDataSourceUrl }).subscribe({
       error: () => { this.managementError = 'Failed to update source URL.'; }
     });
     this.dataService.managePost('interval', this.managementPassword, { data_source_interval: this.managementInterval }).subscribe({
@@ -449,12 +535,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  saveFrontendConfig(): void {
-    localStorage.setItem('backendUrl', this.managementUrl);
-  }
-
-  get backendConnectedUrl(): string {
-    // Use the backend URL the frontend is connected to
-    return this.dataService['BACKEND_HTTP_URL'];
+  closeManagementPopup(): void {
+    this.managementPopupVisible = false;
   }
 }

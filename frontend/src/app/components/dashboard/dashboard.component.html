@@ -29,11 +29,6 @@
         <div class="setting-popover-body">Opens a live feed of every incoming competitor update from the backend, showing the distance, start number, competitor name, lap number, current lap time and total time. Useful for debugging data flow.</div>
       </div>
     </div>
-    <span class="ms-2 small last-update" [class.pulse]="pulseActive">
-      @if ((secondsSinceUpdate$ | async) !== 0) {
-        Last change received: {{ secondsSinceUpdate$ | async }}s ago
-      }
-    </span>
     @if (hasMassStart$ | async) {
       <div class="d-flex align-items-center gap-2 ms-auto">
         <!-- Section label + separator -->
@@ -397,8 +392,8 @@
           <span class="fw-bold">Manage Frontend Settings</span>
         </div>
         <div class="mb-3">
-          <label>Backend URL:</label>
-          <input type="text" [(ngModel)]="managementUrl" class="form-control form-control-sm" />
+          <label>Connect to backend:</label>
+          <input type="text" [(ngModel)]="backendUrl" class="form-control form-control-sm" (blur)="saveFrontendConfig()" />
           <button class="btn btn-sm btn-primary mt-2 w-100" (click)="saveFrontendConfig()">Save frontend config</button>
         </div>
         <div class="management-popup-header mb-3">
@@ -407,11 +402,7 @@
         <div class="management-popup-body">
           <div class="mb-2">
             <label>Backend data source:</label>
-            <input type="text" [value]="backendConnectedUrl" class="form-control form-control-sm" readonly />
-          </div>
-          <div class="mb-2">
-            <label>Password:</label>
-            <input type="password" [(ngModel)]="managementPassword" class="form-control form-control-sm" (change)="fetchManagementStatus()" />
+            <input type="text" [(ngModel)]="managementBackendDataSourceUrl" class="form-control form-control-sm" />
           </div>
           <div class="mb-2 d-flex align-items-center gap-3">
             <div style="flex:1">
@@ -423,9 +414,10 @@
               <span class="badge bg-success" style="cursor:pointer" (click)="setPolling(managementPolling ? 'stop' : 'start')">{{ managementPolling ? 'Active' : 'Stopped' }}</span>
             </div>
           </div>
-          <div class="mb-2">
+          <div class="mb-2 d-flex align-items-center gap-2">
             <button class="btn btn-sm btn-primary" (click)="saveManagementSettings()">Save backend config</button>
             <button class="btn btn-sm btn-warning ms-2" (click)="resetManagementData()">Clear backend cache</button>
+            <input type="password" [(ngModel)]="managementPassword" class="form-control form-control-sm ms-2" style="max-width:180px" placeholder="Password" (change)="fetchManagementStatus()" />
           </div>
           <div class="mb-2 text-danger" *ngIf="managementError">{{ managementError }}</div>
         </div>

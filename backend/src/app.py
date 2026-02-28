@@ -23,6 +23,7 @@ import httpx
 from aiocache import Cache
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -362,7 +363,6 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
 @app.get("/manage/source_url")
 async def get_source_url(request: Request):
-    await check_management_password(request)
     return {"data_source_url": DATA_SOURCE_URL}
 
 
@@ -380,7 +380,6 @@ async def set_source_url(request: Request):
 
 @app.get("/manage/interval")
 async def get_interval(request: Request):
-    await check_management_password(request)
     return {"data_source_interval": DATA_SOURCE_INTERVAL}
 
 
@@ -405,7 +404,6 @@ async def reset_data(request: Request):
 
 @app.get("/manage/polling")
 async def get_polling(request: Request):
-    await check_management_password(request)
     return {"polling": POLLING_ACTIVE}
 
 
@@ -422,3 +420,41 @@ async def set_polling(request: Request):
     else:
         raise HTTPException(status_code=400, detail="Invalid action")
     return {"polling": POLLING_ACTIVE}
+
+
+SETTINGS_KEYS = ["data_source_url", "data_source_interval", "polling"]
+
+def get_settings_dict():
+    return {
+        "data_source_url": DATA_SOURCE_URL,
+        "data_source_interval": DATA_SOURCE_INTERVAL,
+        "polling": POLLING_ACTIVE,
+    }
+
+@app.get("/settings")
+async def get_settings():
+    """Public endpoint to fetch dashboard settings."""
+    return JSONResponse(get_settings_dict())
+
+@app.post("/settings")
+async def update_settings(request: Request):
+    """Protected endpoint to update dashboard settings."""
+    await check_management_password(request)
+    body = await request.json()
+    updated = {}
+    global DATA_SOURCE_URL, DATA_SOURCE_INTERVAL, POLLING_ACTIVE
+    if "data_source_url" in body:
+        DATA_SOURCE_URL = body["data_source_url"]
+        updated["data_source_url"] = DATA_SOURCE_URL
+    if "data_source_interval" in body:
+        try:
+            DATA_SOURCE_INTERVAL = float(body["data_source_interval"])
+            updated["data_source_interval"] = DATA_SOURCE_INTERVAL
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid data_source_interval")
+    if "polling" in body:
+        POLLING_ACTIVE = bool(body["polling"])
+        updated["polling"] = POLLING_ACTIVE
+    if not updated:
+        raise HTTPException(status_code=400, detail="No valid settings provided")
+    return JSONResponse(get_settings_dict())

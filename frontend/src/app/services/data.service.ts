@@ -42,8 +42,8 @@ const MAX_DEBUG_ENTRIES = 200;
 @Injectable({ providedIn: 'root' })
 export class DataService {
   private socket$: WebSocketSubject<any> | null = null;
-  private readonly BACKEND_URL = `ws://${window.location.hostname}:5000/ws`;
-  private readonly BACKEND_HTTP_URL = `http://${window.location.hostname}:5000`;
+  public BACKEND_URL: string = `ws://${window.location.hostname}:5000/ws`;
+  public BACKEND_HTTP_URL: string = `http://${window.location.hostname}:5000`;
 
   private _status = new BehaviorSubject<BackendStatus>({ status: 'Disconnected', url: '', interval: null });
   public status$ = this._status.asObservable();
@@ -155,6 +155,29 @@ export class DataService {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private ngZone: NgZone, private http: HttpClient) {
+    // Use BACKEND_URL from environment if available
+    const envUrl = (window as any).BACKEND_URL;
+    if (envUrl) {
+        this.BACKEND_URL = envUrl;
+    }
+    this.connect();
+  }
+
+  setBackendUrl(): void {
+    const url = localStorage.getItem('backendUrl') || `http://mockserver:8080/api/data`;
+    // Parse host/port from the URL for ws/http
+    try {
+      const u = new URL(url);
+      const host = u.hostname;
+      const port = u.port || '5000';
+      this.BACKEND_URL = `ws://${host}:${port}/ws`;
+      this.BACKEND_HTTP_URL = `http://${host}:${port}`;
+    } catch {
+      // fallback to default
+      this.BACKEND_URL = `ws://${window.location.hostname}:5000/ws`;
+      this.BACKEND_HTTP_URL = `http://${window.location.hostname}:5000`;
+    }
+    this.disconnect();
     this.connect();
   }
 
@@ -169,6 +192,10 @@ export class DataService {
     return this.http.post(`${this.BACKEND_HTTP_URL}/manage/${path}`, body, {
       headers: { 'x-api-key': apiKey }
     });
+  }
+
+  fetchSettings() {
+    return this.http.get(`${this.BACKEND_HTTP_URL}/settings`);
   }
 
   connect() {
