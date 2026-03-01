@@ -4,5 +4,5 @@ example.json
 backend_management_password.txt
 /compose.override.yml
 /tunnel/
-/examples/
 /container-data/
+/mockserver/data/*
