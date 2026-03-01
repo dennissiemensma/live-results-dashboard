@@ -209,11 +209,11 @@
                 @if (!distance.isMassStart) {
                   <c-col [xs]="12">
                     @let lapSchedule = distance.distanceMeters ? timedDistanceLapSchedule(distance.distanceMeters) : [];
-                    @for (heatGroup of distance.heatGroups; track heatGroup.heat) {
+                    @for (displayGroup of mergedHeatGroups(distance); track displayGroup.label) {
                       <div class="timed-heat-row mb-3">
-                        <div class="timed-heat-label">Heat {{ heatGroup.heat }}</div>
+                        <div class="timed-heat-label">{{ displayGroup.label }}</div>
                         <div class="timed-competitors-row">
-                          @for (race of heatGroup.races; track $index) {
+                          @for (race of displayGroup.races; track $index) {
                             @if (race) {
                             <div
                                 class="timed-competitor-card"

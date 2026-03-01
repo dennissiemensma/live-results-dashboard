@@ -286,6 +286,37 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.timedDistanceLapSchedule(distanceMeters).length;
   }
 
+  /**
+   * Returns heat groups for rendering, merging consecutive heats where the
+   * first has only white/red lanes and the second has only yellow/blue lanes.
+   */
+  mergedHeatGroups(distance: ProcessedDistance): { label: string; races: (CompetitorUpdate | null)[] }[] {
+    const result: { label: string; races: (CompetitorUpdate | null)[] }[] = [];
+    const groups = distance.heatGroups;
+    let i = 0;
+    while (i < groups.length) {
+      const cur = groups[i];
+      const curHasWR = cur.races[0] !== null || cur.races[1] !== null;
+      const curNoYB = cur.races[2] === null && cur.races[3] === null;
+      if (curHasWR && curNoYB && i + 1 < groups.length) {
+        const nxt = groups[i + 1];
+        const nxtNoWR = nxt.races[0] === null && nxt.races[1] === null;
+        const nxtHasYB = nxt.races[2] !== null || nxt.races[3] !== null;
+        if (nxtNoWR && nxtHasYB) {
+          result.push({
+            label: `Heat ${cur.heat} & ${nxt.heat}`,
+            races: [cur.races[0], cur.races[1], nxt.races[2], nxt.races[3]],
+          });
+          i += 2;
+          continue;
+        }
+      }
+      result.push({ label: `Heat ${cur.heat}`, races: cur.races });
+      i++;
+    }
+    return result;
+  }
+
   /** True when the competitor has completed all laps for the timed distance. */
   isTimedFinished(race: CompetitorUpdate, distanceMeters: number): boolean {
     return race.laps_count >= this.timedDistanceTotalLaps(distanceMeters);
