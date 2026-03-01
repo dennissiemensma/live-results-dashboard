@@ -59,6 +59,9 @@ services:
     build:
       context: ./mockserver
       dockerfile: Containerfile
+    environment:
+      DATA_SAMPLE_DIRECTORY: data/2026-03-01/
+      DATA_SAMPLE_INTERVAL: 3
     volumes:
       - ./mockserver:/app
     healthcheck:
