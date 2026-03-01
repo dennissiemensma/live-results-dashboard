@@ -2,9 +2,9 @@
   <!-- ===== TOP BAR ===== -->
   <header class="topbar text-white px-4 py-2 d-flex align-items-center gap-3">
     @if (eventName$ | async; as name) {
-      <span class="fw-bold fs-5">{{ name }}</span>
+      <span class="fw-bold fs-5 topbar-title">{{ name }}</span>
     } @else {
-      <span class="skeleton-text skeleton-title">&nbsp;</span>
+      <span class="skeleton-text skeleton-title topbar-title">&nbsp;</span>
     }
     @if (status$ | async; as status) {
       <c-badge
@@ -29,11 +29,6 @@
         <div class="setting-popover-body">Opens a live feed of every incoming competitor update from the backend, showing the distance, start number, competitor name, lap number, current lap time and total time. Useful for debugging data flow.</div>
       </div>
     </div>
-    <span class="ms-2 small last-update" [class.pulse]="pulseActive">
-      @if ((secondsSinceUpdate$ | async) !== 0) {
-        Last change received: {{ secondsSinceUpdate$ | async }}s ago
-      }
-    </span>
     @if (hasMassStart$ | async) {
       <div class="d-flex align-items-center gap-2 ms-auto">
         <!-- Section label + separator -->
@@ -422,6 +417,9 @@
             <button class="btn btn-sm btn-warning ms-2" (click)="resetManagementData()">Reset Data</button>
           </div>
           <div class="mb-2 text-danger" *ngIf="managementError">{{ managementError }}</div>
+          @if ((status$ | async)?.errorMessage; as backendError) {
+            <div class="mb-2 text-warning small">{{ backendError }}</div>
+          }
         </div>
       </div>
       <div class="management-popup-backdrop" (click)="closeManagementPopup()"></div>

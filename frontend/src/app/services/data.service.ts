@@ -13,6 +13,7 @@ export interface BackendStatus {
   status: 'Disconnected' | 'Connecting...' | 'Connected' | 'Error';
   url: string;
   interval: number | null;
+  errorMessage?: string | null;
 }
 
 export interface DebugEntry {
@@ -53,8 +54,6 @@ export class DataService {
   public eventName$ = this._eventName.asObservable();
   private _errors = new BehaviorSubject<string[]>([]);
   public errors$ = this._errors.asObservable();
-  private _lastDataReceived = new BehaviorSubject<number>(0);
-  public lastDataReceived$ = this._lastDataReceived.asObservable();
   private _debugLog = new BehaviorSubject<DebugEntry[]>([]);
   public debugLog$ = this._debugLog.asObservable();
   private _groupThreshold = new BehaviorSubject<number>(this._loadThreshold());
@@ -233,13 +232,18 @@ export class DataService {
           status: 'Connected',
           url: msg.data.data_source_url,
           interval: msg.data.data_source_interval,
+          errorMessage: null,
         }));
         return false;
       case 'event_name':
         this.ngZone.run(() => this._eventName.next(msg.data.name));
         return false;
       case 'error':
-        this.ngZone.run(() => this.addError(msg.data));
+        this.ngZone.run(() => this._status.next({
+          ...this._status.value,
+          status: 'Error',
+          errorMessage: msg.data,
+        }));
         return false;
       case 'distance_meta':
         return this._applyDistanceMeta(msg.data as DistanceMeta);
@@ -279,7 +283,6 @@ export class DataService {
 
   private _applyCompetitorUpdate(comp: CompetitorUpdate): boolean {
     comp.lastUpdated = Date.now();
-    this._lastDataReceived.next(comp.lastUpdated);
     let distComps = this.competitorMap.get(comp.distance_id);
     if (!distComps) { distComps = new Map(); this.competitorMap.set(comp.distance_id, distComps); }
 

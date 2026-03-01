@@ -29,6 +29,12 @@
   background-color: #000;
   min-height: 3rem;
 }
+.topbar-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 // Section label before the settings group
 .topbar-section-label {
   font-size: 0.7rem;
@@ -221,15 +227,6 @@
   100% { box-shadow: 0 0 0 0   rgba(220,53,69,0);   }
 }
 .glowing-badge { animation: glowRed 1.5s infinite; }
-@keyframes pulse {
-  0%   { transform: scale(1);    opacity: 1;    }
-  50%  { transform: scale(1.12); opacity: 0.85; }
-  100% { transform: scale(1);    opacity: 1;    }
-}
-.last-update {
-  display: inline-block;
-  &.pulse { animation: pulse 0.6s ease-in-out; }
-}
 // Pulsing badge while connecting
 @keyframes badgePulse {
   0%, 100% { opacity: 1; }

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import { DataService, DebugEntry } from '../../services/data.service';
 import { ProcessedDistance, StandingsGroup, CompetitorUpdate } from '../../models/data.models';
-import { Observable, combineLatest, timer, map, Subscription } from 'rxjs';
+import { Observable, map, Subscription } from 'rxjs';
 import {
   AccordionModule,
   AlertModule,
@@ -77,12 +77,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   eventName$: Observable<string>;
   errors$: Observable<string[]>;
   status$: Observable<import('../../services/data.service').BackendStatus>;
-  secondsSinceUpdate$: Observable<number>;
   displayedGroups$: Observable<Map<string, StandingsGroup[]>>;
 
   initialLiveId: string | null = null;
   liveEventNumber: number | null = null;
-  pulseActive = false;
   selectedRaceId: string | null = null;
   debugVisible = false;
   debugLog$: Observable<DebugEntry[]>;
@@ -146,8 +144,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return 'lap-badge-normal';
   }
 
-  private pulseTimeout: ReturnType<typeof setTimeout> | null = null;
-  private dataSub: Subscription | null = null;
+
   private titleSub: Subscription | null = null;
 
   constructor(public dataService: DataService, private titleService: Title) {
@@ -174,33 +171,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
         return sorted;
       }),
     );
-    this.secondsSinceUpdate$ = combineLatest([
-      this.dataService.lastDataReceived$,
-      timer(0, 1000),
-    ]).pipe(
-      map(([lastReceived]) => {
-        if (!lastReceived) return 0;
-        return Math.floor((Date.now() - lastReceived) / 1000);
-      }),
-    );
   }
 
   ngOnInit() {
     this.titleSub = this.dataService.eventName$.subscribe(name => {
       this.titleService.setTitle(name ? `${name} | Live Results Dashboard` : 'Live Results Dashboard');
     });
-    this.dataSub = this.dataService.lastDataReceived$.subscribe((ts) => {
-      if (!ts) return;
-      this.pulseActive = true;
-      if (this.pulseTimeout) clearTimeout(this.pulseTimeout);
-      this.pulseTimeout = setTimeout(() => (this.pulseActive = false), 2000);
-    });
   }
 
   ngOnDestroy() {
-    this.dataSub?.unsubscribe();
     this.titleSub?.unsubscribe();
-    if (this.pulseTimeout) clearTimeout(this.pulseTimeout);
   }
 
 
