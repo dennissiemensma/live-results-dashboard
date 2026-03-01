@@ -235,8 +235,6 @@
                                 <span class="timed-comp-name">{{ race.name }}</span>
                                 @if (race.invalid_reason) {
                                   <c-badge color="warning" class="timed-invalid-badge">{{ race.invalid_reason }}</c-badge>
-                                } @else if (distance.distanceMeters && isTimedFinished(race, distance.distanceMeters)) {
-                                  <c-badge color="success" class="timed-finished-badge">Finished</c-badge>
                                 }
                                 @if (race.is_personal_record && distance.distanceMeters && isTimedFinished(race, distance.distanceMeters)) {
                                   <c-badge color="warning" class="timed-pr-badge ms-auto">New PB</c-badge>
@@ -316,9 +314,6 @@
                             <span class="race-name-fixed">{{ race.name }}</span>
                             @if (isRaceLeader(race, distance)) {
                               <c-badge color="success" style="font-size:0.7em">Leader</c-badge>
-                            }
-                            @if (race.finished_rank != null) {
-                              <c-badge color="success" style="font-size:0.7em">Finished</c-badge>
                             }
                           </div>
                           <!-- Centre column: lap time badges (toggled by setting) always in strip, counter after -->
