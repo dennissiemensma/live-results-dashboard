@@ -221,9 +221,11 @@
                                 [class.flash-update]="isRecentUpdate(race.lastUpdated)"
                                 [class.race-finished]="distance.distanceMeters != null && isTimedFinished(race, distance.distanceMeters)"
                                 [class.timed-pr]="race.is_personal_record"
+                                [class.timed-invalid]="race.invalid_reason"
+                                [attr.data-invalid-reason]="race.invalid_reason"
                                 (click)="selectRace(race.id)"
                               >
-                              <!-- Card title: badge + name + Finished left; PB + diff badges right -->
+                              <!-- Card title: badge + name + status badge left; PB + diff badges right -->
                               <div class="timed-comp-header">
                                 <c-badge
                                   class="start-num-badge"
@@ -231,7 +233,9 @@
                                   [ngClass]="badgeTextClass(race.lane)"
                                 >{{ padStartNumber(race.start_number) }}</c-badge>
                                 <span class="timed-comp-name">{{ race.name }}</span>
-                                @if (distance.distanceMeters && isTimedFinished(race, distance.distanceMeters)) {
+                                @if (race.invalid_reason) {
+                                  <c-badge color="warning" class="timed-invalid-badge">{{ race.invalid_reason }}</c-badge>
+                                } @else if (distance.distanceMeters && isTimedFinished(race, distance.distanceMeters)) {
                                   <c-badge color="success" class="timed-finished-badge">Finished</c-badge>
                                 }
                                 @if (race.is_personal_record && distance.distanceMeters && isTimedFinished(race, distance.distanceMeters)) {

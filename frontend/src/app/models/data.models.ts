@@ -50,6 +50,8 @@ export interface CompetitorUpdate {
   personal_record: string | null;
   /** Computed by frontend: true when finished and total_time < personal_record */
   is_personal_record: boolean;
+  /** Reason the result is invalid (e.g. "DSQ", "DNS"); null when valid */
+  invalid_reason: string | null;
 }
 
 // ── Frontend view state ───────────────────────────────────────────────────────
