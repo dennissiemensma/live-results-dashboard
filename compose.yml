@@ -60,7 +60,8 @@ services:
       context: ./mockserver
       dockerfile: Containerfile
     environment:
-      DATA_SAMPLE_DIRECTORY: data/2026-03-01/
+#      DATA_SAMPLE_DIRECTORY: data/2026-03-01/
+      DATA_SAMPLE_DIRECTORY: data/2026-02-28/
       DATA_SAMPLE_INTERVAL: 1
     volumes:
       - ./mockserver:/app

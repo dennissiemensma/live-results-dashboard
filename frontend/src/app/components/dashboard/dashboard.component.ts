@@ -354,15 +354,63 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return `${secs}.${msPart}`;
   }
 
+  private static readonly TIMED_LABEL_MAP: Record<string, string> = {
+    PR:  'Personal Best',
+    FL:  'Fall',
+    DQ:  'Disqualified',
+    DNS: 'Did not start',
+    DNF: 'Did not finish',
+    WDR: 'Withdrawn',
+    TRC: 'Track Record',
+  };
+
+  /** Full description for a remark or invalid_reason code, or null if unknown. */
+  timedLabelTitle(code: string | null): string | null {
+    if (!code) return null;
+    return DashboardComponent.TIMED_LABEL_MAP[code.toUpperCase()] ?? null;
+  }
+
+  /** Color variant for a timed card based on invalid_reason/remark values. */
+  timedCardColor(race: CompetitorUpdate): 'purple' | 'red' | 'orange' | null {
+    if (race.invalid_reason) {
+      return race.invalid_reason.toUpperCase() === 'DQ' ? 'red' : 'orange';
+    }
+    if (race.remark) {
+      const v = race.remark.toUpperCase();
+      return (v === 'PR' || v === 'TRC') ? 'purple' : 'orange';
+    }
+    return null;
+  }
+
+  /** Watermark text: invalid_reason takes priority over remark; resolved via label map. */
+  timedWatermarkText(race: CompetitorUpdate): string | null {
+    const code = race.invalid_reason || race.remark || null;
+    if (!code) return null;
+    return DashboardComponent.TIMED_LABEL_MAP[code.toUpperCase()] ?? code;
+  }
+
+  /** CSS class for the remark badge (PR/TRC → purple, else orange). */
+  remarkBadgeClass(remark: string): string {
+    const v = remark.toUpperCase();
+    return (v === 'PR' || v === 'TRC') ? 'timed-badge-purple' : 'timed-badge-orange';
+  }
+
+  /** CSS class for the invalid_reason badge (DQ → red, else orange). */
+  invalidBadgeClass(reason: string): string {
+    return reason.toUpperCase() === 'DQ' ? 'timed-badge-red' : 'timed-badge-orange';
+  }
+
   /**
-   * Returns a formatted time improvement string like "- 0.521 s" when the
-   * competitor has a personal best, or null otherwise.
+   * Compares the competitor's total time against their personal best once
+   * the final lap of a timed distance is complete. Returns the sign and
+   * 3-decimal diff string, or null if comparison is not applicable.
    */
-  pbImprovement(race: CompetitorUpdate): string | null {
-    if (!race.is_personal_record || !race.total_time || !race.personal_record) return null;
-    const diff = this._parseSeconds(race.personal_record) - this._parseSeconds(race.total_time);
-    if (diff <= 0) return null;
-    return `- ${diff.toFixed(3)} s`;
+  timedPrComparison(race: CompetitorUpdate, distanceMeters: number): { faster: boolean; diff: string } | null {
+    if (!race.personal_record || !race.total_time || !this.isTimedFinished(race, distanceMeters)) return null;
+    const prSecs = this._parseSeconds(race.personal_record);
+    const totalSecs = this._parseSeconds(race.total_time);
+    const diff = Math.abs(prSecs - totalSecs);
+    return { faster: totalSecs < prSecs, diff: diff.toFixed(3) };
   }
 
   private _parseSeconds(t: string): number {

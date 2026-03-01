@@ -135,10 +135,11 @@ def _process(raw: dict) -> dict:
 
             lane = "black" if is_mass_start else (race.get("lane") or "black")
             lap_times = [_format_time(lap.get("lapTime", "")) for lap in laps]
-            raw_pr = race["competitor"].get("personalRecord") or ""
+            raw_pr = race.get("personalRecord") or ""
             personal_record = _format_time(raw_pr) if raw_pr else None
 
             invalid_reason = race.get("invalidReason") or None
+            remark = race.get("remark") or None
 
             processed.append({
                 "start_number": race["competitor"]["startNumber"],
@@ -155,6 +156,7 @@ def _process(raw: dict) -> dict:
                 "laps_remaining": None,
                 "finished_rank": None,
                 "invalid_reason": invalid_reason,
+                "remark": remark,
             })
 
         # sort: laps desc, time asc — stable ordering for broadcast sequence only, not sent to frontend

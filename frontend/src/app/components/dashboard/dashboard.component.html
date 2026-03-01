@@ -217,13 +217,12 @@
                             @if (race) {
                             <div
                                 class="timed-competitor-card"
-                                [class.race-selected]="selectedRaceId === race.id"
                                 [class.flash-update]="isRecentUpdate(race.lastUpdated)"
                                 [class.race-finished]="distance.distanceMeters != null && isTimedFinished(race, distance.distanceMeters)"
-                                [class.timed-pr]="race.is_personal_record"
-                                [class.timed-invalid]="race.invalid_reason"
-                                [attr.data-invalid-reason]="race.invalid_reason"
-                                (click)="selectRace(race.id)"
+                                [class.timed-card-purple]="timedCardColor(race) === 'purple'"
+                                [class.timed-card-red]="timedCardColor(race) === 'red'"
+                                [class.timed-card-orange]="timedCardColor(race) === 'orange'"
+                                [attr.data-watermark]="timedWatermarkText(race)"
                               >
                               <!-- Card title: badge + name + status badge left; PB + diff badges right -->
                               <div class="timed-comp-header">
@@ -233,15 +232,22 @@
                                   [ngClass]="badgeTextClass(race.lane)"
                                 >{{ padStartNumber(race.start_number) }}</c-badge>
                                 <span class="timed-comp-name">{{ race.name }}</span>
-                                @if (race.invalid_reason) {
-                                  <c-badge color="warning" class="timed-invalid-badge">{{ race.invalid_reason }}</c-badge>
+                                @if (race.remark) {
+                                  <c-badge [ngClass]="remarkBadgeClass(race.remark)" [title]="timedLabelTitle(race.remark)">{{ race.remark }}</c-badge>
                                 }
-                                @if (race.is_personal_record && distance.distanceMeters && isTimedFinished(race, distance.distanceMeters)) {
-                                  <c-badge color="warning" class="timed-pr-badge ms-auto">New PB</c-badge>
-                                  @let pbDiff = pbImprovement(race);
-                                  @if (pbDiff) {
-                                    <c-badge class="timed-pb-diff-badge">{{ pbDiff }}</c-badge>
-                                  }
+                                @if (race.invalid_reason) {
+                                  <c-badge [ngClass]="invalidBadgeClass(race.invalid_reason)" [title]="timedLabelTitle(race.invalid_reason)">{{ race.invalid_reason }}</c-badge>
+                                }
+                                @if (race.personal_record) {
+                                  <div class="ms-auto d-flex align-items-center gap-1">
+                                    @if (distance.distanceMeters) {
+                                      @let prComp = timedPrComparison(race, distance.distanceMeters);
+                                      @if (prComp) {
+                                        <c-badge [color]="prComp.faster ? '' : 'warning'" class="timed-pr-diff-badge" [class.timed-pr-diff-faster]="prComp.faster">{{ prComp.faster ? '-' : '+' }} {{ splitFormattedTime(prComp.diff)[0] }}<small class="time-decimal">{{ splitFormattedTime(prComp.diff)[1] }}</small></c-badge>
+                                      }
+                                    }
+                                    <c-badge class="timed-split-badge">PR: {{ splitFormattedTime(truncateLapTime(race.personal_record, 3))[0] }}<small class="time-decimal">{{ splitFormattedTime(truncateLapTime(race.personal_record, 3))[1] }}</small></c-badge>
+                                  </div>
                                 }
                               </div>
                               <!-- Card body: one row per lap distance -->
@@ -253,7 +259,7 @@
                                     <span class="timed-lap-dist">{{ lapDist }}m</span>
                                     <span class="timed-lap-time-group">
                                       @if (splitTime) {
-                                        <!-- Gray split time badge (opaque, muted) - omit for first lap -->
+                                        <!-- Gray split time badge - omit for first lap -->
                                         @if (i > 0) {
                                           <c-badge class="timed-split-badge">{{ splitFormattedTime(truncateLapTime(splitTime, 1))[0] }}<small class="time-decimal">{{ splitFormattedTime(truncateLapTime(splitTime, 1))[1] }}</small></c-badge>
                                         }
@@ -345,6 +351,9 @@
                             }
                           </div>
                           <div class="d-flex align-items-center gap-2">
+                            @if (race.finished_rank != null) {
+                              <span class="mass-finished-label">Finished</span>
+                            }
                             @if (race.gap_to_above) {
                               <span class="standings-gap-label">{{ race.gap_to_above }}</span>
                             } @else if (race.formatted_total_time) {

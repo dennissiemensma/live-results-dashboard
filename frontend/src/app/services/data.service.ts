@@ -296,8 +296,6 @@ export class DataService {
       comp.is_final_lap = false;
       comp.group_number = existing?.group_number ?? null;
       comp.gap_to_above = existing?.gap_to_above ?? null;
-      comp.is_personal_record = false;
-
       // Update the competitor object in-place so the flash animation plays
       // at the competitor's CURRENT row position.
       if (existing) {
@@ -310,14 +308,6 @@ export class DataService {
       // Derive is_final_lap in the frontend
       const target = distComps.get(comp.id)!;
       target.is_final_lap = target.laps_remaining === 1;
-
-      // Derive is_personal_record: finished timed competitor with time < PR
-      if (!dist.isMassStart && target.total_time && target.personal_record) {
-        target.is_personal_record =
-          this._parseSeconds(target.total_time) < this._parseSeconds(target.personal_record);
-      } else {
-        target.is_personal_record = false;
-      }
 
       // Recompute positions and resort immediately — before highlight and finishing line
       this._recomputePositions(distComps);
