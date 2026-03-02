@@ -16,17 +16,6 @@ export interface BackendStatus {
   errorMessage?: string | null;
 }
 
-export interface DebugEntry {
-  timestamp: number;
-  name: string;
-  startNumber: string;
-  distanceId: string;
-  distanceName: string;
-  lapsCount: number;
-  currentLapTime: string;
-  formattedTotalTime: string;
-}
-
 const RENDER_INTERVAL_MS = 250;
 const LANE_ORDER: Record<string, number> = { white: 0, red: 1, yellow: 2, blue: 3 };
 const LANE_ORDER_KEYS = Object.keys(LANE_ORDER); // ['white','red','yellow','blue']
@@ -38,7 +27,7 @@ const STORAGE_KEY_THRESHOLD = 'groupThresholdSec';
 const STORAGE_KEY_MAX_GROUPS = 'maxGroups';
 const STORAGE_KEY_LAP_VARIANCE = 'lapVariancePct';
 const STORAGE_KEY_SHOW_LAP_TIMES = 'showMassStartLapTimes';
-const MAX_DEBUG_ENTRIES = 200;
+const STORAGE_KEY_FOLLOW = 'follow';
 
 @Injectable({ providedIn: 'root' })
 export class DataService {
@@ -54,8 +43,6 @@ export class DataService {
   public eventName$ = this._eventName.asObservable();
   private _errors = new BehaviorSubject<string[]>([]);
   public errors$ = this._errors.asObservable();
-  private _debugLog = new BehaviorSubject<DebugEntry[]>([]);
-  public debugLog$ = this._debugLog.asObservable();
   private _groupThreshold = new BehaviorSubject<number>(this._loadThreshold());
   public groupThreshold$ = this._groupThreshold.asObservable();
 
@@ -100,6 +87,22 @@ export class DataService {
       if (v !== null) return v !== 'false';
     } catch (e) { /* noop */ }
     return true;
+  }
+
+  private _follow = new BehaviorSubject<boolean>(this._loadFollow());
+  get follow(): boolean { return this._follow.value; }
+
+  setFollow(value: boolean) {
+    this._follow.next(value);
+    try { localStorage.setItem(STORAGE_KEY_FOLLOW, String(value)); } catch (e) { /* noop */ }
+  }
+
+  private _loadFollow(): boolean {
+    try {
+      const v = localStorage.getItem(STORAGE_KEY_FOLLOW);
+      if (v !== null) return v !== 'false';
+    } catch (e) { /* noop */ }
+    return false;
   }
 
   setGroupThreshold(value: number) {
@@ -155,19 +158,6 @@ export class DataService {
 
   constructor(private ngZone: NgZone, private http: HttpClient) {
     this.connect();
-  }
-
-  // Management API methods
-  manageGet(path: string, apiKey: string) {
-    return this.http.get(`${this.BACKEND_HTTP_URL}/manage/${path}`, {
-      headers: { 'x-api-key': apiKey }
-    });
-  }
-
-  managePost(path: string, apiKey: string, body: any) {
-    return this.http.post(`${this.BACKEND_HTTP_URL}/manage/${path}`, body, {
-      headers: { 'x-api-key': apiKey }
-    });
   }
 
   connect() {
@@ -330,25 +320,6 @@ export class DataService {
       comp.is_final_lap = false;
       distComps.set(comp.id, comp);
     }
-
-    // Append to debug log
-    const debugLog = this._debugLog.value;
-    if (debugLog.length >= MAX_DEBUG_ENTRIES) debugLog.splice(0, debugLog.length - MAX_DEBUG_ENTRIES);
-    const distName = this.distanceMap.get(comp.distance_id)?.name ?? comp.distance_id;
-    const currentLapTime = comp.lap_times?.length
-      ? comp.lap_times[comp.lap_times.length - 1]
-      : '';
-    debugLog.push({
-      timestamp: Date.now(),
-      name: comp.name,
-      startNumber: comp.start_number,
-      distanceId: comp.distance_id,
-      distanceName: distName,
-      lapsCount: comp.laps_count,
-      currentLapTime,
-      formattedTotalTime: comp.formatted_total_time,
-    });
-    this._debugLog.next(debugLog);
 
     return true;
   }

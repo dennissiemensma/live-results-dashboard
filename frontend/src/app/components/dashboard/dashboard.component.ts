@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Title } from '@angular/platform-browser';
-import { DataService, DebugEntry } from '../../services/data.service';
+import { DataService } from '../../services/data.service';
 import { ProcessedDistance, StandingsGroup, CompetitorUpdate } from '../../models/data.models';
 import { Observable, map, Subscription } from 'rxjs';
 import {
@@ -82,24 +82,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   initialLiveId: string | null = null;
   liveEventNumber: number | null = null;
   selectedRaceId: string | null = null;
-  debugVisible = false;
-  debugLog$: Observable<DebugEntry[]>;
+  displaySettingsOpen = true;
+  massStartSettingsOpen = false;
 
-  // Management popup state
-  managementPopupVisible = false;
-  managementPassword = '';
-  managementError: string | null = null;
-  managementUrl = '';
-  managementInterval = 1;
-  managementPolling = true;
+  private currentFollowKey: string | null = null;
+  private followScrollSub: Subscription | null = null;
 
   // Hide mass start settings if no mass start present
   hasMassStart$: Observable<boolean>;
-
-  toggleDebug(): void {
-    this.debugVisible = !this.debugVisible;
-  }
-
 
   selectRace(id: string): void {
     this.selectedRaceId = this.selectedRaceId === id ? null : id;
@@ -152,7 +142,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.eventName$ = this.dataService.eventName$;
     this.errors$ = this.dataService.errors$;
     this.displayedGroups$ = this.dataService.displayedGroups$;
-    this.debugLog$ = this.dataService.debugLog$;
     this.hasMassStart$ = this.dataService.processedData$.pipe(
       map(distances => !!distances?.some(d => d.isMassStart))
     );
@@ -177,10 +166,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.titleSub = this.dataService.eventName$.subscribe(name => {
       this.titleService.setTitle(name ? `${name} | Live Results Dashboard` : 'Live Results Dashboard');
     });
+    this.followScrollSub = this.sortedDistances$.subscribe(distances => {
+      if (!this.dataService.follow) return;
+      const live = distances.find(d => d.isLive);
+      if (!live) return;
+      this._scrollToFollow(live);
+    });
   }
 
   ngOnDestroy() {
     this.titleSub?.unsubscribe();
+    this.followScrollSub?.unsubscribe();
   }
 
 
@@ -242,15 +238,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (group.isOthers) return 'Tail of the race';
     if (isFirst && !anyFinished) return 'Head of the race';
     return 'Group ' + group.groupNumber;
-  }
-
-  formatDebugTime(ts: number): string {
-    const d = new Date(ts);
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    const ss = String(d.getSeconds()).padStart(2, '0');
-    const ms = String(d.getMilliseconds()).padStart(3, '0');
-    return `${hh}:${mm}:${ss}.${ms}`;
   }
 
   /**
@@ -317,6 +304,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return result;
   }
 
+  /** Lane color per slot index, derived from any non-null race across all heat groups. */
+  heatGroupLaneColors(distance: ProcessedDistance): (string | null)[] {
+    const colors: (string | null)[] = [];
+    for (const group of this.mergedHeatGroups(distance)) {
+      group.races.forEach((race, i) => {
+        if (race && !colors[i]) colors[i] = race.lane;
+      });
+    }
+    return colors;
+  }
+
   /** True when the competitor has completed all laps for the timed distance. */
   isTimedFinished(race: CompetitorUpdate, distanceMeters: number): boolean {
     return race.laps_count >= this.timedDistanceTotalLaps(distanceMeters);
@@ -355,13 +353,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private static readonly TIMED_LABEL_MAP: Record<string, string> = {
-    PR:  'Personal Best',
+    PR:  'New PB',
     FL:  'Fall',
     DQ:  'Disqualified',
     DNS: 'Did not start',
     DNF: 'Did not finish',
     WDR: 'Withdrawn',
-    TRC: 'Track Record',
+    TRC: 'New Track Record',
   };
 
   /** Full description for a remark or invalid_reason code, or null if unknown. */
@@ -370,23 +368,71 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return DashboardComponent.TIMED_LABEL_MAP[code.toUpperCase()] ?? null;
   }
 
+  onFollowChange(event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.dataService.setFollow(checked);
+    this.currentFollowKey = null;
+  }
+
+  /** True when a timed race counts as complete: all laps done OR has an invalid_reason. */
+  private timedRaceComplete(race: CompetitorUpdate, distanceMeters: number): boolean {
+    return !!race.invalid_reason || this.isTimedFinished(race, distanceMeters);
+  }
+
+  /** Number of completed races in a timed distance. */
+  timedCompletedCount(distance: ProcessedDistance): number {
+    if (!distance.distanceMeters) return 0;
+    return distance.processedRaces.filter(r => this.timedRaceComplete(r, distance.distanceMeters!)).length;
+  }
+
+  /** True when all races in a timed distance are complete (finished or invalid). */
+  private isTimedDistanceDone(distance: ProcessedDistance): boolean {
+    const total = distance.processedRaces.length;
+    if (!distance.distanceMeters || total === 0) return false;
+    return this.timedCompletedCount(distance) === total;
+  }
+
+  /** True when the distance should show the Done badge. */
+  isDistanceDone(distance: ProcessedDistance): boolean {
+    if (this.liveEventNumber !== null && distance.eventNumber < this.liveEventNumber) return true;
+    if (!distance.isMassStart) return this.isTimedDistanceDone(distance);
+    return false;
+  }
+
+  /** Count of timed races with the given remark value (case-insensitive). */
+  timedRemarkCount(distance: ProcessedDistance, remark: string): number {
+    const upper = remark.toUpperCase();
+    return distance.processedRaces.filter(r => r.remark?.toUpperCase() === upper).length;
+  }
+
   /** Color variant for a timed card based on invalid_reason/remark values. */
-  timedCardColor(race: CompetitorUpdate): 'purple' | 'red' | 'orange' | null {
+  timedCardColor(race: CompetitorUpdate): 'pr' | 'trc' | 'red' | 'orange' | null {
     if (race.invalid_reason) {
       return race.invalid_reason.toUpperCase() === 'DQ' ? 'red' : 'orange';
     }
     if (race.remark) {
       const v = race.remark.toUpperCase();
-      return (v === 'PR' || v === 'TRC') ? 'purple' : 'orange';
+      if (v === 'PR') return 'pr';
+      if (v === 'TRC') return 'trc';
+      return 'orange';
     }
     return null;
   }
 
-  /** Watermark text: invalid_reason takes priority over remark; resolved via label map. */
-  timedWatermarkText(race: CompetitorUpdate): string | null {
+  /** Watermark text: invalid_reason takes priority over remark; resolved via label map.
+   *  For PR remarks, appends the diff vs personal best on a second line. */
+  timedWatermarkText(race: CompetitorUpdate, distanceMeters?: number): string | null {
     const code = race.invalid_reason || race.remark || null;
     if (!code) return null;
-    return DashboardComponent.TIMED_LABEL_MAP[code.toUpperCase()] ?? code;
+    const label = DashboardComponent.TIMED_LABEL_MAP[code.toUpperCase()] ?? code;
+    if (code.toUpperCase() === 'PR' && distanceMeters != null) {
+      const cmp = this.timedPrComparison(race, distanceMeters);
+      if (cmp) return `${label}\n${cmp.faster ? '-' : '+'} ${cmp.diff}`;
+    }
+    if (code.toUpperCase() === 'TRC' && race.category) {
+      return `${label}\n${race.category}`;
+    }
+    return label;
   }
 
   /** CSS class for the remark badge (PR/TRC → purple, else orange). */
@@ -411,6 +457,36 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const totalSecs = this._parseSeconds(race.total_time);
     const diff = Math.abs(prSecs - totalSecs);
     return { faster: totalSecs < prSecs, diff: diff.toFixed(3) };
+  }
+
+  private _scrollToFollow(distance: ProcessedDistance): void {
+    let key: string;
+    let selector: string;
+
+    if (!distance.isMassStart) {
+      const heatGroups = this.mergedHeatGroups(distance);
+      const currentIdx = heatGroups.findIndex(g =>
+        g.races.some(r => r != null && distance.distanceMeters != null &&
+          !this.isTimedFinished(r, distance.distanceMeters))
+      );
+      if (currentIdx === -1) return;
+      const targetHeat = heatGroups[Math.max(0, currentIdx - 1)];
+      key = `${distance.id}:${heatGroups[currentIdx].label}`;
+      selector = `[data-distance-id="${distance.id}"][data-heat-label="${targetHeat.label}"]`;
+    } else {
+      key = `mass:${distance.id}`;
+      selector = `[data-distance-body="${distance.id}"]`;
+    }
+
+    if (key === this.currentFollowKey) return;
+    this.currentFollowKey = key;
+
+    requestAnimationFrame(() => {
+      const el = document.querySelector(selector) as HTMLElement | null;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
   }
 
   private _parseSeconds(t: string): number {
@@ -463,46 +539,4 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return 'd-none d-xl-block';
   }
 
-  closeManagementPopup(): void {
-    this.managementPopupVisible = false;
-  }
-
-  resetManagementData(): void {
-    this.managementError = null;
-    this.dataService.managePost('reset', this.managementPassword, {}).subscribe({
-      error: () => { this.managementError = 'Failed to reset data.'; }
-    });
-  }
-
-  setPolling(action: 'start' | 'stop'): void {
-    this.managementError = null;
-    this.dataService.managePost('polling', this.managementPassword, { action }).subscribe({
-      next: (res: any) => { this.managementPolling = res.polling; },
-      error: () => { this.managementError = 'Failed to update polling state.'; }
-    });
-  }
-
-  saveManagementSettings(): void {
-    this.managementError = null;
-    this.dataService.managePost('source_url', this.managementPassword, { data_source_url: this.managementUrl }).subscribe({
-      error: () => { this.managementError = 'Failed to update source URL.'; }
-    });
-    this.dataService.managePost('interval', this.managementPassword, { data_source_interval: this.managementInterval }).subscribe({
-      error: () => { this.managementError = 'Failed to update interval.'; }
-    });
-  }
-
-  onStatusBadgeClick(): void {
-    // Placeholder: implement logic as needed
-    // For now, just toggle management popup
-    this.managementPopupVisible = !this.managementPopupVisible;
-  }
-
-  fetchManagementStatus(): void {
-    // Placeholder: implement logic as needed
-    // For now, just clear management error
-    this.managementError = null;
-    // Optionally, fetch status from backend
-    this.dataService.status$.subscribe();
-  }
 }

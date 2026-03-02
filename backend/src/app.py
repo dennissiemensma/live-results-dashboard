@@ -148,6 +148,7 @@ def _process(raw: dict) -> dict:
                 "id": race["id"],
                 "distance_id": dist_id,
                 "name": race["competitor"]["name"],
+                "category": race["competitor"].get("category") or None,
                 "heat": race["heat"],
                 "lane": lane,
                 "formatted_total_time": formatted_total_time,
@@ -219,7 +220,9 @@ def _diff(prev: dict | None, curr: dict) -> tuple[list[dict], list[dict]]:
                 continue  # unchanged
             is_new = race_id not in prev_dist_comps
             if not comp.get("total_time") and not is_new:
-                continue  # suppress no-time updates after initial appearance
+                prev_comp = prev_dist_comps[race_id]
+                if comp.get("invalid_reason") == prev_comp.get("invalid_reason") and comp.get("remark") == prev_comp.get("remark"):
+                    continue  # suppress no-time updates after initial appearance
             comp_updates.append(comp)
 
     return dist_updates, comp_updates
@@ -275,6 +278,8 @@ manager = ConnectionManager()
 # ── fetch loop ────────────────────────────────────────────────────────────────
 
 POLLING_ACTIVE = True
+_upstream_user_agent: str | None = None
+
 
 async def fetch_data_loop() -> None:
     async with httpx.AsyncClient(timeout=10.0) as client:
@@ -283,40 +288,37 @@ async def fetch_data_loop() -> None:
                 await asyncio.sleep(0.5)
                 continue
             try:
-                resp = await client.get(DATA_SOURCE_URL)
+                headers = {"User-Agent": _upstream_user_agent} if _upstream_user_agent else {}
+                resp = await client.get(DATA_SOURCE_URL, headers=headers)
                 if resp.status_code == 200:
                     raw = resp.json()
-                    if raw.get("success") is False:
-                        logger.warning("Source data has success=false")
-                        await manager.broadcast({"type": "error", "data": "Source returned success=false"})
-                    else:
-                        curr = _process(raw)
-                        prev: dict | None = await cache.get("processed_state")
-                        if curr != prev:
-                            logger.info("New data — computing diff")
-                            dist_updates, comp_updates = _diff(prev, curr)
-                            await cache.set("processed_state", curr)
+                    curr = _process(raw)
+                    prev: dict | None = await cache.get("processed_state")
+                    if curr != prev:
+                        logger.info("New data — computing diff")
+                        dist_updates, comp_updates = _diff(prev, curr)
+                        await cache.set("processed_state", curr)
 
-                            if prev is None or prev.get("name") != curr["name"]:
-                                await manager.broadcast({"type": "event_name", "data": {"name": curr["name"]}})
+                        if prev is None or prev.get("name") != curr["name"]:
+                            await manager.broadcast({"type": "event_name", "data": {"name": curr["name"]}})
 
-                            for dist in dist_updates:
-                                await manager.broadcast({"type": "distance_meta", "data": dist})
-                            for comp in comp_updates:
-                                logger.info(
-                                    "competitor_update: #%s %s — laps=%s total_time=%s (%s)",
-                                    comp["start_number"],
-                                    comp["name"],
-                                    comp["laps_count"],
-                                    comp["total_time"],
-                                    comp["formatted_total_time"],
-                                )
-                                await manager.broadcast({"type": "competitor_update", "data": comp})
-
+                        for dist in dist_updates:
+                            await manager.broadcast({"type": "distance_meta", "data": dist})
+                        for comp in comp_updates:
                             logger.info(
-                                "Broadcast: %d distance_meta, %d competitor_update",
-                                len(dist_updates), len(comp_updates),
+                                "competitor_update: #%s %s — laps=%s total_time=%s (%s)",
+                                comp["start_number"],
+                                comp["name"],
+                                comp["laps_count"],
+                                comp["total_time"],
+                                comp["formatted_total_time"],
                             )
+                            await manager.broadcast({"type": "competitor_update", "data": comp})
+
+                        logger.info(
+                            "Broadcast: %d distance_meta, %d competitor_update",
+                            len(dist_updates), len(comp_updates),
+                        )
                 else:
                     logger.warning("Fetch failed: HTTP %d", resp.status_code)
             except Exception as e:
@@ -336,6 +338,15 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+@app.middleware("http")
+async def capture_user_agent(request: Request, call_next):
+    global _upstream_user_agent
+    ua = request.headers.get("user-agent")
+    if ua:
+        _upstream_user_agent = ua
+    return await call_next(request)
 
 
 @app.websocket("/ws")

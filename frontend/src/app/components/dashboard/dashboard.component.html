@@ -13,91 +13,110 @@
                : status.status === 'Error' ? 'danger'
                : 'secondary'"
         [class.pulse-badge]="status.status === 'Connecting...'"
-        (click)="onStatusBadgeClick()"
-        style="cursor:pointer"
       >{{ status.status }}</c-badge>
     }
-    <!-- Show server updates button sits next to connection status -->
-    <div class="setting-group">
-      <button
-        class="btn btn-sm debug-toggle-btn"
-        [class.active]="debugVisible"
-        (click)="toggleDebug()"
-      >Show server updates</button>
-      <div class="setting-popover">
-        <div class="setting-popover-title">Show server updates</div>
-        <div class="setting-popover-body">Opens a live feed of every incoming competitor update from the backend, showing the distance, start number, competitor name, lap number, current lap time and total time. Useful for debugging data flow.</div>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <!-- Display settings (collapsible) -->
+      <div class="topbar-settings-group d-flex align-items-center">
+        <button class="btn btn-sm btn-outline-light topbar-group-btn" (click)="displaySettingsOpen = !displaySettingsOpen">
+          Display <span class="topbar-group-arrow" [class.open]="displaySettingsOpen">▾</span>
+        </button>
+        @if (displaySettingsOpen) {
+          <div class="d-flex align-items-center gap-2 ms-1">
+            <div class="topbar-section-sep"></div>
+            <div class="setting-group ms-1">
+              <label class="small text-white-50 text-nowrap mb-0 setting-label" for="followInput">Automatically follow &amp; scroll</label>
+              <input
+                id="followInput"
+                type="checkbox"
+                class="form-check-input threshold-checkbox"
+                [checked]="dataService.follow"
+                (change)="onFollowChange($event)"
+              />
+              <div class="setting-popover">
+                <div class="setting-popover-title">Automatically follow &amp; scroll</div>
+                <div class="setting-popover-body">Automatically scroll to keep the live distance in view as results come in.</div>
+              </div>
+            </div>
+          </div>
+        }
       </div>
+      <!-- Mass Start settings (collapsible) -->
+      @if (hasMassStart$ | async) {
+        <div class="topbar-settings-group d-flex align-items-center">
+          <button class="btn btn-sm btn-outline-light topbar-group-btn" (click)="massStartSettingsOpen = !massStartSettingsOpen">
+            Mass Start <span class="topbar-group-arrow" [class.open]="massStartSettingsOpen">▾</span>
+          </button>
+          @if (massStartSettingsOpen) {
+            <div class="d-flex align-items-center gap-2 ms-1">
+              <div class="topbar-section-sep"></div>
+              <div class="setting-group ms-1">
+                <label class="small text-white-50 text-nowrap mb-0 setting-label" for="groupThresholdInput">Max seconds gap between groups</label>
+                <input
+                  id="groupThresholdInput"
+                  type="number"
+                  min="0" max="10" step="0.5"
+                  class="form-control form-control-sm threshold-input"
+                  [value]="dataService.groupThreshold"
+                  (change)="onThresholdChange($event)"
+                />
+                <span class="small text-white-50">s</span>
+                <div class="setting-popover">
+                  <div class="setting-popover-title">Max seconds gap between groups</div>
+                  <div class="setting-popover-body">Minimum time difference (in seconds) between two competitors <strong>on the same lap</strong> for them to be placed in <strong>separate</strong> standings groups. <br><br>Lower values create more groups; 0 puts every competitor in their own group.<br><br>For comparison: Marathon races maintain a <strong>two second gap</strong> to indicate when a group is formed and which competitors are part of it.</div>
+                </div>
+              </div>
+              <div class="setting-group ms-2">
+                <label class="small text-white-50 text-nowrap mb-0 setting-label" for="maxGroupsInput">Max groups</label>
+                <input
+                  id="maxGroupsInput"
+                  type="number"
+                  min="0" step="1"
+                  class="form-control form-control-sm threshold-input"
+                  [value]="dataService.maxGroups"
+                  (change)="onMaxGroupsChange($event)"
+                />
+                <div class="setting-popover">
+                  <div class="setting-popover-title">Max groups</div>
+                  <div class="setting-popover-body">Maximum number of standings groups to display in the group strip. Groups are based on the <i>Max seconds gap between groups</i> set to the left. <br><br>Competitors beyond the last group are collected into a "Tail of the race" group. <br><br>Set to 0 to disable grouping entirely.</div>
+                </div>
+              </div>
+              <div class="setting-group ms-2">
+                <label class="small text-white-50 text-nowrap mb-0 setting-label" for="lapVarianceInput">Lap Δ</label>
+                <input
+                  id="lapVarianceInput"
+                  type="number"
+                  min="0" max="50" step="1"
+                  class="form-control form-control-sm threshold-input"
+                  [value]="dataService.lapVarianceThreshold"
+                  (change)="onLapVarianceChange($event)"
+                />
+                <span class="small text-white-50">%</span>
+                <div class="setting-popover">
+                  <div class="setting-popover-title">Lap variance threshold</div>
+                  <div class="setting-popover-body">Percentage difference between <strong>consecutive lap times</strong> used to colour lap badges. <br><br><span class="popover-badge popover-badge-green">green</span> → Within threshold <br><span class="popover-badge popover-badge-orange">orange</span> → Slower than threshold <br><span class="popover-badge popover-badge-purple">purple</span> → Faster than threshold</div>
+                  <div class="setting-popover-body setting-popover-example">E.g. at 5%: a previous lap of 30.0 s means slower &gt; 31.5 s turns orange, faster &lt; 28.5 s turns purple.</div>
+                </div>
+              </div>
+              <div class="setting-group ms-2">
+                <label class="small text-white-50 text-nowrap mb-0 setting-label" for="showLapTimesInput">Lap times</label>
+                <input
+                  id="showLapTimesInput"
+                  type="checkbox"
+                  class="form-check-input threshold-checkbox"
+                  [checked]="dataService.showMassStartLapTimes"
+                  (change)="onShowLapTimesChange($event)"
+                />
+                <div class="setting-popover">
+                  <div class="setting-popover-title">Show lap times</div>
+                  <div class="setting-popover-body">Show or hide the lap time badge strip on each mass-start competitor row. Hiding lap times gives a cleaner view during busy races.</div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
     </div>
-    @if (hasMassStart$ | async) {
-      <div class="d-flex align-items-center gap-2 ms-auto">
-        <!-- Section label + separator -->
-        <span class="topbar-section-label">Mass Start Settings</span>
-        <div class="topbar-section-sep"></div>
-        <div class="setting-group">
-          <label class="small text-white-50 text-nowrap mb-0 setting-label" for="groupThresholdInput">Max seconds gap between groups</label>
-          <input
-            id="groupThresholdInput"
-            type="number"
-            min="0" max="10" step="0.5"
-            class="form-control form-control-sm threshold-input"
-            [value]="dataService.groupThreshold"
-            (change)="onThresholdChange($event)"
-          />
-          <span class="small text-white-50">s</span>
-          <div class="setting-popover">
-            <div class="setting-popover-title">Max seconds gap between groups</div>
-            <div class="setting-popover-body">Minimum time difference (in seconds) between two competitors <strong>on the same lap</strong> for them to be placed in <strong>separate</strong> standings groups. <br><br>Lower values create more groups; 0 puts every competitor in their own group.<br><br>For comparison: Marathon races maintain a <strong>two second gap</strong> to indicate when a group is formed and which competitors are part of it.</div>
-          </div>
-        </div>
-        <div class="setting-group ms-2">
-          <label class="small text-white-50 text-nowrap mb-0 setting-label" for="maxGroupsInput">Max groups</label>
-          <input
-            id="maxGroupsInput"
-            type="number"
-            min="0" step="1"
-            class="form-control form-control-sm threshold-input"
-            [value]="dataService.maxGroups"
-            (change)="onMaxGroupsChange($event)"
-          />
-          <div class="setting-popover">
-            <div class="setting-popover-title">Max groups</div>
-            <div class="setting-popover-body">Maximum number of standings groups to display in the group strip. Groups are based on the <i>Max seconds gap between groups</i> set to the left. <br><br>Competitors beyond the last group are collected into a "Tail of the race" group. <br><br>Set to 0 to disable grouping entirely.</div>
-          </div>
-        </div>
-        <div class="setting-group ms-2">
-          <label class="small text-white-50 text-nowrap mb-0 setting-label" for="lapVarianceInput">Lap Δ</label>
-          <input
-            id="lapVarianceInput"
-            type="number"
-            min="0" max="50" step="1"
-            class="form-control form-control-sm threshold-input"
-            [value]="dataService.lapVarianceThreshold"
-            (change)="onLapVarianceChange($event)"
-          />
-          <span class="small text-white-50">%</span>
-          <div class="setting-popover">
-            <div class="setting-popover-title">Lap variance threshold</div>
-            <div class="setting-popover-body">Percentage difference between <strong>consecutive lap times</strong> used to colour lap badges. <br><br><span class="popover-badge popover-badge-green">green</span> → Within threshold <br><span class="popover-badge popover-badge-orange">orange</span> → Slower than threshold <br><span class="popover-badge popover-badge-purple">purple</span> → Faster than threshold</div>
-            <div class="setting-popover-body setting-popover-example">E.g. at 5%: a previous lap of 30.0 s means slower &gt; 31.5 s turns orange, faster &lt; 28.5 s turns purple.</div>
-          </div>
-        </div>
-        <div class="setting-group ms-2">
-          <label class="small text-white-50 text-nowrap mb-0 setting-label" for="showLapTimesInput">Lap times</label>
-          <input
-            id="showLapTimesInput"
-            type="checkbox"
-            class="form-check-input threshold-checkbox"
-            [checked]="dataService.showMassStartLapTimes"
-            (change)="onShowLapTimesChange($event)"
-          />
-          <div class="setting-popover">
-            <div class="setting-popover-title">Show lap times</div>
-            <div class="setting-popover-body">Show or hide the lap time badge strip on each mass-start competitor row. Hiding lap times gives a cleaner view during busy races.</div>
-          </div>
-        </div>
-      </div>
-    }
   </header>
   <!-- ===== ERRORS ===== -->
   <div class="px-4 pt-2">
@@ -107,44 +126,21 @@
       </c-alert>
     }
   </div>
-  <!-- ===== DEBUG PANEL ===== -->
-  @if (debugVisible) {
-    @let log = (debugLog$ | async) ?? [];
-    <div class="debug-panel px-4 pt-2 pb-2">
-      <div class="debug-header d-flex align-items-center gap-2 mb-1">
-        <span class="fw-bold small">Server updates</span>
-        <span class="text-muted small">({{ log.length }} entries, latest last)</span>
-      </div>
-      <div class="debug-list">
-        @for (entry of log; track $index) {
-          <div class="debug-row">
-            <span class="debug-ts">{{ formatDebugTime(entry.timestamp) }}</span>
-            <span class="debug-dist">{{ entry.distanceName }}</span>
-            <span class="debug-num">#{{ entry.startNumber }}</span>
-            <span class="debug-name">{{ entry.name }}</span>
-            <span class="debug-laps">{{ ordinalSuffix(entry.lapsCount)[0] }}{{ ordinalSuffix(entry.lapsCount)[1] }} lap</span>
-            <span class="debug-laptime">{{ entry.currentLapTime || '—' }}</span>
-            <span class="debug-time">{{ entry.formattedTotalTime || '—' }}</span>
-          </div>
-        }
-      </div>
-    </div>
-  }
   <!-- ===== MAIN CONTENT ===== -->
   <main class="flex-grow-1 px-4 pb-4">
     @if ((sortedDistances$ | async)?.length) {
       <c-accordion [alwaysOpen]="true">
         @for (distance of sortedDistances$ | async; track distance.id) {
           <c-accordion-item [visible]="distance.id === initialLiveId"
-            [class.accordion-done]="liveEventNumber !== null && distance.eventNumber < liveEventNumber">
+            [class.accordion-done]="isDistanceDone(distance)">
             <ng-template cTemplateId="accordionHeader">
               <div class="d-flex w-100 align-items-center gap-2 me-3">
                 @if (distance.isLive) {
                   <c-badge color="danger" class="glowing-badge flex-shrink-0">Live</c-badge>
-                } @else if (liveEventNumber !== null && distance.eventNumber < liveEventNumber) {
+                } @else if (isDistanceDone(distance)) {
                   <c-badge color="dark" class="flex-shrink-0">Done</c-badge>
                 }
-                <span class="flex-grow-1 d-flex align-items-center gap-1">
+                <span class="flex-grow-1 d-flex align-items-center gap-1 flex-wrap">
                   {{ distance.name }}
                   @if (distance.isMassStart && distance.totalLaps) {
                     <small class="text-muted">({{ distance.totalLaps }} laps)</small>
@@ -152,12 +148,18 @@
                   @if (!distance.isMassStart && distance.distanceMeters) {
                     <small class="text-muted">({{ distance.distanceMeters }}m)</small>
                   }
+                  @if (!distance.isMassStart && distance.processedRaces.length > 0) {
+                    @let completed = timedCompletedCount(distance);
+                    @let total = distance.processedRaces.length;
+                    <c-badge color="success" class="flex-shrink-0 accordion-count-badge">{{ completed }}/{{ total }}</c-badge>
+                  }
                 </span>
               </div>
             </ng-template>
             <ng-template cTemplateId="accordionBody">
               <!-- ===== MASS-START TOP STRIP ===== -->
               @if (distance.isMassStart) {
+                <div [attr.data-distance-body]="distance.id"></div>
                 @let dGroups = (displayedGroups$ | async)?.get(distance.id) ?? [];
                 @if (dGroups.length) {
                 <div class="groups-strip d-flex flex-row-reverse gap-2 mb-3 pb-1">
@@ -209,28 +211,34 @@
                 @if (!distance.isMassStart) {
                   <c-col [xs]="12">
                     @let lapSchedule = distance.distanceMeters ? timedDistanceLapSchedule(distance.distanceMeters) : [];
+                    @let laneColors = heatGroupLaneColors(distance);
                     @for (displayGroup of mergedHeatGroups(distance); track displayGroup.label) {
-                      <div class="timed-heat-row mb-3">
-                        <div class="timed-heat-label">{{ displayGroup.label }}</div>
+                      <div class="timed-heat-row"
+                           [attr.data-heat-label]="displayGroup.label"
+                           [attr.data-distance-id]="distance.id">
+                        <div class="timed-heat-label">
+                          <div class="timed-heat-lane-bgs" aria-hidden="true">
+                            @for (race of displayGroup.races; track $index) {
+                              <div class="timed-heat-lane-bg" [style.--lane-color]="race?.lane ?? laneColors[$index] ?? null"></div>
+                            }
+                          </div>
+                          <span class="timed-heat-label-text">{{ displayGroup.label }}</span>
+                        </div>
                         <div class="timed-competitors-row">
                           @for (race of displayGroup.races; track $index) {
+                            <div class="timed-lane-col" [style.--lane-color]="race?.lane ?? laneColors[$index] ?? null">
                             @if (race) {
                             <div
                                 class="timed-competitor-card"
-                                [class.flash-update]="isRecentUpdate(race.lastUpdated)"
                                 [class.race-finished]="distance.distanceMeters != null && isTimedFinished(race, distance.distanceMeters)"
-                                [class.timed-card-purple]="timedCardColor(race) === 'purple'"
+                                [class.timed-card-pr]="timedCardColor(race) === 'pr'"
+                                [class.timed-card-trc]="timedCardColor(race) === 'trc'"
                                 [class.timed-card-red]="timedCardColor(race) === 'red'"
                                 [class.timed-card-orange]="timedCardColor(race) === 'orange'"
-                                [attr.data-watermark]="timedWatermarkText(race)"
+                                [attr.data-watermark]="timedWatermarkText(race, distance.distanceMeters ?? undefined)"
                               >
-                              <!-- Card title: badge + name + status badge left; PB + diff badges right -->
+                              <!-- Card title: name + status badge left; PB + diff badges right -->
                               <div class="timed-comp-header">
-                                <c-badge
-                                  class="start-num-badge"
-                                  [style.background-color]="race.lane"
-                                  [ngClass]="badgeTextClass(race.lane)"
-                                >{{ padStartNumber(race.start_number) }}</c-badge>
                                 <span class="timed-comp-name">{{ race.name }}</span>
                                 @if (race.remark) {
                                   <c-badge [ngClass]="remarkBadgeClass(race.remark)" [title]="timedLabelTitle(race.remark)">{{ race.remark }}</c-badge>
@@ -255,7 +263,8 @@
                                 @for (lapDist of lapSchedule; track lapDist; let i = $index) {
                                   @let splitTime = timedLapTime(race, i);
                                   @let cumTime = timedCumulativeTime(race, i);
-                                  <div class="timed-lap-row" [class.timed-lap-done]="splitTime !== null">
+                                  <div class="timed-lap-row" [class.timed-lap-done]="splitTime !== null"
+                                       [class.timed-flash-update]="isRecentUpdate(race.lastUpdated) && i === race.laps_count - 1">
                                     <span class="timed-lap-dist">{{ lapDist }}m</span>
                                     <span class="timed-lap-time-group">
                                       @if (splitTime) {
@@ -268,7 +277,7 @@
                                           <span class="race-time">{{ splitFormattedTime(truncateLapTime(cumTime!, 3))[0] }}<small class="time-decimal">{{ splitFormattedTime(truncateLapTime(cumTime!, 3))[1] }}</small></span>
                                         </span>
                                       } @else {
-                                        <span class="timed-pending">·</span>
+                                        <span class="timed-static-placeholder"></span>
                                       }
                                     </span>
                                   </div>
@@ -279,6 +288,7 @@
                               <!-- Empty placeholder to preserve lane column position -->
                               <div class="timed-competitor-card timed-lane-placeholder"></div>
                             }
+                            </div>
                           }
                         </div>
                       </div>
@@ -392,45 +402,4 @@
       }
     }
   </main>
-  <!-- ===== MANAGEMENT POPUP ===== -->
-  @if (managementPopupVisible) {
-    <div class="management-popup-float">
-      <div class="management-popup-window">
-        <div class="management-popup-header">
-          <span class="fw-bold">Manage Backend Settings</span>
-          <button class="btn btn-sm btn-secondary float-end" (click)="closeManagementPopup()">×</button>
-        </div>
-        <div class="management-popup-body">
-          <div class="mb-2">
-            <label>Password:</label>
-            <input type="password" [(ngModel)]="managementPassword" class="form-control form-control-sm" (change)="fetchManagementStatus()" />
-          </div>
-          <div class="mb-2">
-            <label>Data Source URL:</label>
-            <input type="text" [(ngModel)]="managementUrl" class="form-control form-control-sm" />
-          </div>
-          <div class="mb-2">
-            <label>Fetch Interval (seconds):</label>
-            <input type="number" [(ngModel)]="managementInterval" class="form-control form-control-sm" min="0.1" step="0.1" />
-          </div>
-          <div class="mb-2">
-            <label>Polling:</label>
-            <span class="badge bg-success" *ngIf="managementPolling">Active</span>
-            <span class="badge bg-danger" *ngIf="!managementPolling">Stopped</span>
-            <button class="btn btn-sm btn-outline-success ms-2" (click)="setPolling('start')" [disabled]="managementPolling">Start</button>
-            <button class="btn btn-sm btn-outline-danger ms-2" (click)="setPolling('stop')" [disabled]="!managementPolling">Stop</button>
-          </div>
-          <div class="mb-2">
-            <button class="btn btn-sm btn-primary" (click)="saveManagementSettings()">Save Settings</button>
-            <button class="btn btn-sm btn-warning ms-2" (click)="resetManagementData()">Reset Data</button>
-          </div>
-          <div class="mb-2 text-danger" *ngIf="managementError">{{ managementError }}</div>
-          @if ((status$ | async)?.errorMessage; as backendError) {
-            <div class="mb-2 text-warning small">{{ backendError }}</div>
-          }
-        </div>
-      </div>
-      <div class="management-popup-backdrop" (click)="closeManagementPopup()"></div>
-    </div>
-  }
 </div>

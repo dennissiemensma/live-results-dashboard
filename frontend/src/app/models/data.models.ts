@@ -48,6 +48,8 @@ export interface CompetitorUpdate {
   gap_to_above?: string | null;
   /** Personal record time string (formatted, backend-provided); null if not set */
   personal_record: string | null;
+  /** Competitor category (e.g. "DC1", "SC2"); null when absent */
+  category: string | null;
   /** Reason the result is invalid (e.g. "DSQ", "DNS"); null when valid */
   invalid_reason: string | null;
   /** Remark string (e.g. "PB", "SB"); null when absent */
