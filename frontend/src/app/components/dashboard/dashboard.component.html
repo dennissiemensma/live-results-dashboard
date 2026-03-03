@@ -214,6 +214,7 @@
                     @let laneColors = heatGroupLaneColors(distance);
                     @for (displayGroup of mergedHeatGroups(distance); track displayGroup.label) {
                       <div class="timed-heat-row"
+                           [class.timed-heat-row-active]="isActiveHeatRow(distance.id, displayGroup.label)"
                            [attr.data-heat-label]="displayGroup.label"
                            [attr.data-distance-id]="distance.id">
                         <div class="timed-heat-label">

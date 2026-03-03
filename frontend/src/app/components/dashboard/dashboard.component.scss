@@ -419,6 +419,11 @@
 .timed-heat-row {
   // no visual styling — plain stacking
 }
+// Active heat row: subtle blue glow to indicate it received the last update
+.timed-heat-row-active {
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.45);
+  border-radius: 0.375rem;
+}
 .timed-heat-label {
   position: relative;
   display: flex;

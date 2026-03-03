@@ -84,9 +84,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   selectedRaceId: string | null = null;
   displaySettingsOpen = true;
   massStartSettingsOpen = false;
+  activeHeatKey: { distanceId: string; label: string } | null = null;
 
   private currentFollowKey: string | null = null;
   private followScrollSub: Subscription | null = null;
+  private activeHeatSub: Subscription | null = null;
 
   // Hide mass start settings if no mass start present
   hasMassStart$: Observable<boolean>;
@@ -172,13 +174,34 @@ export class DashboardComponent implements OnInit, OnDestroy {
       if (!live) return;
       this._scrollToFollow(live);
     });
+    this.activeHeatSub = this.sortedDistances$.subscribe(distances => {
+      let maxTime = 0;
+      let result: { distanceId: string; label: string } | null = null;
+      for (const distance of distances) {
+        if (distance.isMassStart) continue;
+        for (const group of this.mergedHeatGroups(distance)) {
+          for (const race of group.races) {
+            if (race?.lastUpdated && race.lastUpdated > maxTime) {
+              maxTime = race.lastUpdated;
+              result = { distanceId: distance.id, label: group.label };
+            }
+          }
+        }
+      }
+      this.activeHeatKey = result;
+    });
   }
 
   ngOnDestroy() {
     this.titleSub?.unsubscribe();
     this.followScrollSub?.unsubscribe();
+    this.activeHeatSub?.unsubscribe();
   }
 
+
+  isActiveHeatRow(distanceId: string, label: string): boolean {
+    return this.activeHeatKey?.distanceId === distanceId && this.activeHeatKey?.label === label;
+  }
 
   isRecentUpdate(timestamp: number | undefined): boolean {
     if (!timestamp) return false;
