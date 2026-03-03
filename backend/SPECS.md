@@ -20,8 +20,6 @@ Each component:
 
 ### Data management endpoints (backend)
 - [x] Add endpoints for managing data source URL (`GET`/`POST`), fetch interval (`GET`/`POST`), reset data (`POST`), and start/stop polling (`POST`)
-- [x] Add new env var `MANAGEMENT_PASSWORD` for password-protected access to these endpoints
-- [x] Endpoints require password (header: X-Management-Password)
 
 ### Data processing (backend)
 - [x] Parse raw source data on each fetch; diff against previous parsed state

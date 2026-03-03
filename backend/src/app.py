@@ -21,7 +21,7 @@ from contextlib import asynccontextmanager
 
 import httpx
 from aiocache import Cache
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,15 +31,6 @@ DATA_SOURCE_URL = os.environ.get("DATA_SOURCE_URL", "http://localhost:8080/api/d
 DATA_SOURCE_INTERVAL = float(os.environ.get("DATA_SOURCE_INTERVAL", "1"))
 
 cache = Cache(Cache.MEMORY)
-
-MANAGEMENT_PASSWORD = os.environ.get("MANAGEMENT_PASSWORD", "")
-
-# Helper for password check
-async def check_management_password(request: Request):
-    header_pw = request.headers.get("x-api-key")
-    if not header_pw or header_pw != MANAGEMENT_PASSWORD:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
 
 # ── time helpers ──────────────────────────────────────────────────────────────
 
@@ -375,72 +366,3 @@ async def websocket_endpoint(ws: WebSocket) -> None:
     except Exception:
         manager.disconnect(ws)
 
-
-@app.get("/manage/source_url")
-async def get_source_url(request: Request):
-    await check_management_password(request)
-    return {"data_source_url": DATA_SOURCE_URL}
-
-
-@app.post("/manage/source_url")
-async def set_source_url(request: Request):
-    await check_management_password(request)
-    body = await request.json()
-    url = body.get("data_source_url")
-    if not url:
-        raise HTTPException(status_code=400, detail="Missing data_source_url")
-    global DATA_SOURCE_URL
-    DATA_SOURCE_URL = url
-    return {"data_source_url": DATA_SOURCE_URL}
-
-
-@app.get("/manage/interval")
-async def get_interval(request: Request):
-    await check_management_password(request)
-    return {"data_source_interval": DATA_SOURCE_INTERVAL}
-
-
-@app.post("/manage/interval")
-async def set_interval(request: Request):
-    await check_management_password(request)
-    body = await request.json()
-    interval = body.get("data_source_interval")
-    if interval is None:
-        raise HTTPException(status_code=400, detail="Missing data_source_interval")
-    global DATA_SOURCE_INTERVAL
-    DATA_SOURCE_INTERVAL = float(interval)
-    return {"data_source_interval": DATA_SOURCE_INTERVAL}
-
-
-@app.post("/manage/reset")
-async def reset_data(request: Request):
-    await check_management_password(request)
-    for race_id in (await cache.get("all_race_ids") or []):
-        await cache.delete(f"race:{race_id}")
-    for dist_id in (await cache.get("all_dist_ids") or []):
-        await cache.delete(f"dist:{dist_id}")
-    await cache.delete("event_name")
-    await cache.delete("all_race_ids")
-    await cache.delete("all_dist_ids")
-    return {"reset": True}
-
-
-@app.get("/manage/polling")
-async def get_polling(request: Request):
-    await check_management_password(request)
-    return {"polling": POLLING_ACTIVE}
-
-
-@app.post("/manage/polling")
-async def set_polling(request: Request):
-    await check_management_password(request)
-    body = await request.json()
-    action = body.get("action")
-    global POLLING_ACTIVE
-    if action == "start":
-        POLLING_ACTIVE = True
-    elif action == "stop":
-        POLLING_ACTIVE = False
-    else:
-        raise HTTPException(status_code=400, detail="Invalid action")
-    return {"polling": POLLING_ACTIVE}
