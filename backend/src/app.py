@@ -237,9 +237,9 @@ async def _update_cache_and_diff(curr: dict) -> tuple[bool, bool, list[dict], li
             dist_updates.append(dist)
 
         for race_id, comp in curr["competitors"].get(dist_id, {}).items():
-            all_race_ids.append(race_id)
             prev_comp = await cache.get(f"race:{race_id}")
             if prev_comp == comp:
+                all_race_ids.append(race_id)  # unchanged — still track for replay
                 continue
             is_new = prev_comp is None
             if not comp.get("total_time") and not is_new:
@@ -248,6 +248,7 @@ async def _update_cache_and_diff(curr: dict) -> tuple[bool, bool, list[dict], li
                     continue  # suppress no-time updates after initial appearance
             await cache.set(f"race:{race_id}", comp)
             comp_updates.append(comp)
+            all_race_ids.append(race_id)
 
     await cache.set("all_dist_ids", list(curr["distances"].keys()))
     await cache.set("all_race_ids", all_race_ids)
@@ -275,7 +276,7 @@ class ConnectionManager:
         })
 
         event_name = await cache.get("event_name")
-        if event_name:
+        if event_name is not None:
             logger.info("Replaying latest state to new client")
             await ws.send_json({"type": "event_name", "data": {"name": event_name}})
             for dist_id in (await cache.get("all_dist_ids") or []):
