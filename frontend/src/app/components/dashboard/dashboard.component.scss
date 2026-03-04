@@ -317,14 +317,17 @@
   text-overflow: ellipsis;
   max-width: 10rem;
 }
-// Lap counter: plain text after the badge strip
+// Lap counter: pinned at a fixed right offset so it never shifts with time text width
 .laps-counter-text {
+  position: absolute;
+  right: 9rem;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 0.75rem;
   font-family: monospace;
   font-variant-numeric: tabular-nums;
   color: #6c757d;
   white-space: nowrap;
-  flex-shrink: 0;
   line-height: 1;
 }
 .laps-counter-total {

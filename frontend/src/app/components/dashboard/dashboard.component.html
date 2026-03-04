@@ -353,9 +353,10 @@
                                 }
                               }
                             }
-                            <!-- Lap counter: plain text, after the badges -->
-                            @if (distance.totalLaps) {
-                              <span class="laps-counter-text">{{ race.laps_count }}<span class="laps-counter-total">/{{ distance.totalLaps }}</span></span>
+                            <!-- Lap counter: remaining laps after this round -->
+                            @if (distance.totalLaps && race.finished_rank == null) {
+                              @let remaining = distance.totalLaps - race.laps_count - 1;
+                              <span class="laps-counter-text">{{ remaining }}<span class="laps-counter-total"> more lap{{ remaining !== 1 ? 's' : '' }} <span style="text-decoration:underline">after</span> this round</span></span>
                             }
                             <!-- Final lap badge moved here: displayed to the right of the lap counter -->
                             @if (race.is_final_lap) {
