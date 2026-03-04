@@ -195,13 +195,34 @@ def _process(raw: dict) -> dict:
     }
 
 
-async def _update_cache_and_diff(curr: dict) -> tuple[bool, list[dict], list[dict]]:
+async def _update_cache_and_diff(curr: dict) -> tuple[bool, bool, list[dict], list[dict]]:
     """
     Compare curr against per-race cached entries. Update cache for anything
-    that changed. Returns (name_changed, changed_distance_metas, changed_competitor_updates).
+    that changed. Returns (reset_detected, name_changed, changed_distance_metas, changed_competitor_updates).
+
+    A reset is detected when any competitor's laps_count is lower than the
+    cached value — laps can never go backwards in a normal race.
     """
     dist_updates: list[dict] = []
     comp_updates: list[dict] = []
+
+    # ── reset detection ───────────────────────────────────────────────────────
+    reset_detected = False
+    for dist_id, comps in curr["competitors"].items():
+        for race_id, comp in comps.items():
+            prev = await cache.get(f"race:{race_id}")
+            if prev and comp["laps_count"] < prev["laps_count"]:
+                logger.warning(
+                    "Reset detected: %s laps %d → %d — clearing cache",
+                    comp["name"], prev["laps_count"], comp["laps_count"],
+                )
+                reset_detected = True
+                break
+        if reset_detected:
+            break
+
+    if reset_detected:
+        await cache.clear()
 
     prev_name = await cache.get("event_name")
     name_changed = curr["name"] != prev_name
@@ -231,7 +252,7 @@ async def _update_cache_and_diff(curr: dict) -> tuple[bool, list[dict], list[dic
     await cache.set("all_dist_ids", list(curr["distances"].keys()))
     await cache.set("all_race_ids", all_race_ids)
 
-    return name_changed, dist_updates, comp_updates
+    return reset_detected, name_changed, dist_updates, comp_updates
 
 
 # ── WebSocket connection manager ──────────────────────────────────────────────
@@ -302,7 +323,11 @@ async def fetch_data_loop() -> None:
                 if resp.status_code == 200:
                     raw = resp.json()
                     curr = _process(raw)
-                    name_changed, dist_updates, comp_updates = await _update_cache_and_diff(curr)
+                    reset_detected, name_changed, dist_updates, comp_updates = await _update_cache_and_diff(curr)
+
+                    if reset_detected:
+                        logger.info("Broadcasting reset signal")
+                        await manager.broadcast({"type": "reset"})
 
                     if name_changed:
                         await manager.broadcast({"type": "event_name", "data": {"name": curr["name"]}})

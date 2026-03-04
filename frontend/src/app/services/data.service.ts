@@ -1,6 +1,6 @@
 import { Injectable, NgZone } from '@angular/core';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import {
   DistanceMeta,
   CompetitorUpdate,
@@ -37,6 +37,8 @@ export class DataService {
 
   private _status = new BehaviorSubject<BackendStatus>({ status: 'Disconnected', url: '', interval: null });
   public status$ = this._status.asObservable();
+  private _reset = new Subject<void>();
+  public reset$ = this._reset.asObservable();
   private _processedData = new BehaviorSubject<ProcessedDistance[]>([]);
   public processedData$ = this._processedData.asObservable();
   private _eventName = new BehaviorSubject<string>('');
@@ -235,6 +237,9 @@ export class DataService {
           errorMessage: msg.data,
         }));
         return false;
+      case 'reset':
+        this._applyReset();
+        return false;
       case 'distance_meta':
         return this._applyDistanceMeta(msg.data as DistanceMeta);
       case 'competitor_update':
@@ -242,6 +247,19 @@ export class DataService {
       default:
         return false;
     }
+  }
+
+  private _applyReset(): void {
+    this.distanceMap.clear();
+    this.competitorMap.clear();
+    for (const timer of this._groupDebounceTimers.values()) clearTimeout(timer);
+    this._groupDebounceTimers.clear();
+    this.ngZone.run(() => {
+      this._eventName.next('');
+      this._processedData.next([]);
+      this._displayedGroups.next(new Map());
+      this._reset.next();
+    });
   }
 
   private _applyDistanceMeta(meta: DistanceMeta): boolean {

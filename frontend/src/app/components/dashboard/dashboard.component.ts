@@ -89,6 +89,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private currentFollowKey: string | null = null;
   private followScrollSub: Subscription | null = null;
   private activeHeatSub: Subscription | null = null;
+  private resetSub: Subscription | null = null;
 
   // Hide mass start settings if no mass start present
   hasMassStart$: Observable<boolean>;
@@ -150,11 +151,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.sortedDistances$ = this.dataService.processedData$.pipe(
       map((distances) => {
         if (!distances || distances.length === 0) return [];
-        const sorted = [...distances].sort((a, b) => b.eventNumber - a.eventNumber);
-        // Capture the first live distance id/eventNumber only once
+        const sorted = [...distances].sort((a, b) => a.eventNumber - b.eventNumber);
+        // Capture the first live distance id/eventNumber for initial accordion open
         if (this.initialLiveId === null) {
           const live = sorted.find((d) => d.isLive);
           if (live) {
+            this.initialLiveId = live.id;
+            this.liveEventNumber = live.eventNumber;
+          }
+        }
+        // When follow is on, update initialLiveId if the live distance changes
+        // (also handled in followScrollSub for scrolling, but keep in sync here)
+        else if (this.dataService.follow) {
+          const live = sorted.find((d) => d.isLive);
+          if (live && live.id !== this.initialLiveId) {
             this.initialLiveId = live.id;
             this.liveEventNumber = live.eventNumber;
           }
@@ -168,10 +178,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.titleSub = this.dataService.eventName$.subscribe(name => {
       this.titleService.setTitle(name ? `${name} | Live Results Dashboard` : 'Live Results Dashboard');
     });
+    this.resetSub = this.dataService.reset$.subscribe(() => {
+      this.initialLiveId = null;
+      this.liveEventNumber = null;
+      this.currentFollowKey = null;
+    });
     this.followScrollSub = this.sortedDistances$.subscribe(distances => {
       if (!this.dataService.follow) return;
       const live = distances.find(d => d.isLive);
       if (!live) return;
+      // When the live distance changes, expand its accordion and scroll to it
+      if (live.id !== this.initialLiveId) {
+        this.initialLiveId = live.id;
+        this.liveEventNumber = live.eventNumber;
+        this.currentFollowKey = null;
+        requestAnimationFrame(() => {
+          const el = document.querySelector(`[data-distance-header="${live.id}"]`) as HTMLElement | null;
+          if (!el) return;
+          const top = el.getBoundingClientRect().top + window.scrollY;
+          window.scrollTo({ top, behavior: 'smooth' });
+        });
+        return;
+      }
       this._scrollToFollow(live);
     });
     this.activeHeatSub = this.sortedDistances$.subscribe(distances => {
@@ -196,6 +224,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.titleSub?.unsubscribe();
     this.followScrollSub?.unsubscribe();
     this.activeHeatSub?.unsubscribe();
+    this.resetSub?.unsubscribe();
   }
 
 
@@ -324,7 +353,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       result.push({ label: `Heat ${cur.heat}`, races: cur.races });
       i++;
     }
-    return result.reverse();
+    return result;
   }
 
   /** Lane color per slot index, derived from any non-null race across all heat groups. */
@@ -492,7 +521,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         g.races.some(r => r != null && this.isRecentUpdate(r.lastUpdated))
       );
       if (currentIdx === -1) return;
-      const targetHeat = heatGroups[Math.max(0, currentIdx - 1)];
+      const targetHeat = heatGroups[Math.max(0, currentIdx - 2)];
       key = `${distance.id}:${heatGroups[currentIdx].label}`;
       selector = `[data-distance-id="${distance.id}"][data-heat-label="${targetHeat.label}"]`;
     } else {

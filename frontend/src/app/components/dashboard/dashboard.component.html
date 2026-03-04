@@ -131,6 +131,7 @@
     @if ((sortedDistances$ | async)?.length) {
       <c-accordion [alwaysOpen]="true">
         @for (distance of sortedDistances$ | async; track distance.id) {
+          <div [attr.data-distance-header]="distance.id" class="accordion-scroll-anchor"></div>
           <c-accordion-item [visible]="distance.id === initialLiveId"
             [class.accordion-done]="isDistanceDone(distance)">
             <ng-template cTemplateId="accordionHeader">
