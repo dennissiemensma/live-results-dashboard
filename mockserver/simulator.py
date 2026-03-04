@@ -41,7 +41,9 @@ async def _replay_loop() -> None:
         _state = json.loads(path.read_text())
         log.info("Replay: loaded %s (%d/%d)", path.name, i, len(files))
         await asyncio.sleep(DATA_SAMPLE_INTERVAL)
-    log.info("Replay complete — holding last sample")
+    log.info("Replay complete — broadcasting last sample indefinitely")
+    while True:
+        await asyncio.sleep(DATA_SAMPLE_INTERVAL)
 
 
 @asynccontextmanager
