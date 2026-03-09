@@ -236,6 +236,15 @@
                                 [class.timed-card-orange]="timedCardColor(race) === 'orange'"
                                 [attr.data-watermark]="timedWatermarkText(race, distance.distanceMeters ?? undefined)"
                               >
+                              @if (timedCardColor(race) === 'pr') {
+                                @let prCmp = distance.distanceMeters ? timedPrComparison(race, distance.distanceMeters) : null;
+                                <div class="timed-watermark timed-watermark-pr" aria-hidden="true">
+                                  <div>{{ ts.t('remarkNewPb') }}</div>
+                                  @if (prCmp) {
+                                    <div>{{ prCmp.faster ? '-' : '+' }} {{ splitFormattedTime(prCmp.diff)[0] }}<small class="timed-watermark-decimal">{{ splitFormattedTime(prCmp.diff)[1] }}</small></div>
+                                  }
+                                </div>
+                              }
                               <!-- Card title: name + status badge left; PB + diff badges right -->
                               <div class="timed-comp-header">
                                 <span class="timed-comp-name">{{ race.name }}</span>

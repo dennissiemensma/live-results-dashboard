@@ -532,6 +532,22 @@
     cursor: default;
     pointer-events: none;
   }
+  .timed-watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 90%;
+    transform: translate(-50%, -50%) rotate(-20deg);
+    font-size: 1rem;
+    font-weight: 1000;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    line-height: 1.25;
+    text-align: center;
+    pointer-events: none;
+    &.timed-watermark-pr { color: rgba(111, 66, 193, 0.80); }
+    .timed-watermark-decimal { font-size: 0.65em; }
+  }
   &[data-watermark]::before {
     content: attr(data-watermark);
     position: absolute;

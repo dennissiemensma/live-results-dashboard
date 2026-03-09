@@ -493,11 +493,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   timedWatermarkText(race: CompetitorUpdate, distanceMeters?: number): string | null {
     const code = race.invalid_reason || race.remark || null;
     if (!code) return null;
+    // PR watermark is rendered as a DOM overlay to support smaller decimal formatting
+    if (code.toUpperCase() === 'PR') return null;
     const label = this.timedLabelTitle(code) ?? code;
-    if (code.toUpperCase() === 'PR' && distanceMeters != null) {
-      const cmp = this.timedPrComparison(race, distanceMeters);
-      if (cmp) return `${label}\n${cmp.faster ? '-' : '+'} ${cmp.diff}`;
-    }
     if (code.toUpperCase() === 'TRC' && race.category) {
       return `${label}\n${race.category}`;
     }
