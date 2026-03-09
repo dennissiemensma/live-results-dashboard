@@ -33,8 +33,12 @@ const STORAGE_KEY_FOLLOW = 'follow';
 @Injectable({ providedIn: 'root' })
 export class DataService {
   private socket$: WebSocketSubject<any> | null = null;
-  private readonly BACKEND_URL = `ws://${window.location.hostname}:5000/ws`;
-  private readonly BACKEND_HTTP_URL = `http://${window.location.hostname}:5000`;
+  private readonly BACKEND_URL = (() => {
+    const base = (window as any).BACKEND_URL;
+    if (base) return base.replace(/^http/, 'ws') + '/ws';
+    return `ws://${window.location.hostname}:5000/ws`;
+  })();
+  private readonly BACKEND_HTTP_URL: string = (window as any).BACKEND_URL ?? `http://${window.location.hostname}:5000`;
 
   private _status = new BehaviorSubject<BackendStatus>({ status: 'Disconnected', url: '', interval: null });
   public status$ = this._status.asObservable();

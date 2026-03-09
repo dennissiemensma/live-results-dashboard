@@ -20,4 +20,4 @@ COPY public/env-inject.js /usr/share/nginx/html/env-inject.js
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/bin/sh", "-c", "envsubst '${BACKEND_URL}' < /usr/share/nginx/html/env-inject.js > /tmp/env-inject.js && mv /tmp/env-inject.js /usr/share/nginx/html/env-inject.js && exec nginx -g 'daemon off;'"]
