@@ -253,7 +253,7 @@
                                         <c-badge [color]="prComp.faster ? '' : 'warning'" class="timed-pr-diff-badge" [class.timed-pr-diff-faster]="prComp.faster">{{ prComp.faster ? '-' : '+' }} {{ splitFormattedTime(prComp.diff)[0] }}<small class="time-decimal">{{ splitFormattedTime(prComp.diff)[1] }}</small></c-badge>
                                       }
                                     }
-                                    <c-badge class="timed-split-badge">PR: {{ splitFormattedTime(truncateLapTime(race.personal_record, 3))[0] }}<small class="time-decimal">{{ splitFormattedTime(truncateLapTime(race.personal_record, 3))[1] }}</small></c-badge>
+                                    <c-badge class="timed-split-badge">{{ ts.t('pbLabel') }} {{ splitFormattedTime(truncateLapTime(race.personal_record, 3))[0] }}<small class="time-decimal">{{ splitFormattedTime(truncateLapTime(race.personal_record, 3))[1] }}</small></c-badge>
                                   </div>
                                 }
                               </div>

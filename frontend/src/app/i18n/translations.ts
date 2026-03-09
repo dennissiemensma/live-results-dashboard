@@ -44,7 +44,8 @@ export interface Translations {
   // Race events
   lapCompleted: string;
   finished: string;
-  // Timed remarks
+  // Timed personal best label and remarks
+  pbLabel: string;
   remarkNewPb: string;
   remarkFall: string;
   remarkDisqualified: string;
@@ -95,6 +96,7 @@ export const en: Translations = {
   heatMergedLabel: 'Heat {a} & {b}',
   lapCompleted: 'Lap completed',
   finished: 'Finished',
+  pbLabel: 'PB:',
   remarkNewPb: 'New PB',
   remarkFall: 'Fall',
   remarkDisqualified: 'Disqualified',
@@ -144,6 +146,7 @@ export const nl: Translations = {
   heatMergedLabel: 'Serie {a} & {b}',
   lapCompleted: 'Ronde voltooid',
   finished: 'Gefinisht',
+  pbLabel: 'PR:',
   remarkNewPb: 'Nieuw PR',
   remarkFall: 'Val',
   remarkDisqualified: 'Gediskwalificeerd',
