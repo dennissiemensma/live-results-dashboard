@@ -248,8 +248,8 @@
                               <!-- Card title: name + status badge left; PB + diff badges right -->
                               <div class="timed-comp-header">
                                 <span class="timed-comp-name">{{ race.name }}</span>
-                                @if (race.remark) {
-                                  <c-badge [ngClass]="remarkBadgeClass(race.remark)" [title]="timedLabelTitle(race.remark)">{{ race.remark }}</c-badge>
+                                @for (remarkCode of splitRemarks(race.remark); track remarkCode) {
+                                  <c-badge [ngClass]="remarkBadgeClass(remarkCode)" [title]="timedLabelTitle(remarkCode)">{{ remarkCode }}</c-badge>
                                 }
                                 @if (race.invalid_reason) {
                                   <c-badge [ngClass]="invalidBadgeClass(race.invalid_reason)" [title]="timedLabelTitle(race.invalid_reason)">{{ race.invalid_reason }}</c-badge>

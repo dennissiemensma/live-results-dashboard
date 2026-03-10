@@ -427,8 +427,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     DNS: 'remarkDidNotStart',
     DNF: 'remarkDidNotFinish',
     WDR: 'remarkWithdrawn',
-    TRC: 'remarkNewTrackRecord',
+    TR:  'remarkNewTrackRecord',
+    TRC: 'remarkTrackRecordCourse',
   };
+
+  /** Split a space-separated remark string into individual codes. */
+  splitRemarks(remark: string | null): string[] {
+    if (!remark) return [];
+    return remark.trim().split(/\s+/);
+  }
 
   /** Full description for a remark or invalid_reason code, or null if unknown. */
   timedLabelTitle(code: string | null): string | null {
@@ -468,10 +475,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return false;
   }
 
-  /** Count of timed races with the given remark value (case-insensitive). */
+  /** Count of timed races whose remark contains the given code (case-insensitive, space-separated). */
   timedRemarkCount(distance: ProcessedDistance, remark: string): number {
     const upper = remark.toUpperCase();
-    return distance.processedRaces.filter(r => r.remark?.toUpperCase() === upper).length;
+    return distance.processedRaces.filter(r =>
+      this.splitRemarks(r.remark).some(v => v.toUpperCase() === upper)
+    ).length;
   }
 
   /** Color variant for a timed card based on invalid_reason/remark values. */
@@ -480,32 +489,46 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return race.invalid_reason.toUpperCase() === 'DQ' ? 'red' : 'orange';
     }
     if (race.remark) {
-      const v = race.remark.toUpperCase();
-      if (v === 'PR') return 'pr';
-      if (v === 'TRC') return 'trc';
+      const parts = this.splitRemarks(race.remark).map(v => v.toUpperCase());
+      if (parts.some(v => v === 'TR' || v === 'TRC')) return 'trc';
+      if (parts.some(v => v === 'PR')) return 'pr';
       return 'orange';
     }
     return null;
   }
 
   /** Watermark text: invalid_reason takes priority over remark; resolved via label map.
-   *  For PR remarks, appends the diff vs personal best on a second line. */
+   *  PR remarks are rendered as a DOM overlay instead (returns null).
+   *  TR/TRC get priority; TRC appends the category on a second line. */
   timedWatermarkText(race: CompetitorUpdate, distanceMeters?: number): string | null {
-    const code = race.invalid_reason || race.remark || null;
-    if (!code) return null;
-    // PR watermark is rendered as a DOM overlay to support smaller decimal formatting
-    if (code.toUpperCase() === 'PR') return null;
-    const label = this.timedLabelTitle(code) ?? code;
-    if (code.toUpperCase() === 'TRC' && race.category) {
-      return `${label}\n${race.category}`;
+    if (race.invalid_reason) {
+      return this.timedLabelTitle(race.invalid_reason) ?? race.invalid_reason;
     }
-    return label;
+    if (!race.remark) return null;
+    const parts = this.splitRemarks(race.remark).map(v => v.toUpperCase());
+    // PR watermark is rendered as a DOM overlay to support smaller decimal formatting
+    if (parts.every(v => v === 'PR')) return null;
+    // TR/TRC get dedicated watermark treatment
+    const trcCode = parts.find(v => v === 'TR' || v === 'TRC');
+    if (trcCode) {
+      const label = this.timedLabelTitle(trcCode) ?? trcCode;
+      if (trcCode === 'TRC' && race.category) {
+        return `${label}\n${race.category}`;
+      }
+      return label;
+    }
+    // Other non-PR remark
+    const firstNonPr = parts.find(v => v !== 'PR');
+    if (firstNonPr) {
+      return this.timedLabelTitle(firstNonPr) ?? firstNonPr;
+    }
+    return null;
   }
 
-  /** CSS class for the remark badge (PR/TRC → purple, else orange). */
+  /** CSS class for the remark badge (PR/TR/TRC → purple, else orange). */
   remarkBadgeClass(remark: string): string {
     const v = remark.toUpperCase();
-    return (v === 'PR' || v === 'TRC') ? 'timed-badge-purple' : 'timed-badge-orange';
+    return (v === 'PR' || v === 'TR' || v === 'TRC') ? 'timed-badge-purple' : 'timed-badge-orange';
   }
 
   /** CSS class for the invalid_reason badge (DQ → red, else orange). */

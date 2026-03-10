@@ -53,6 +53,7 @@ export interface Translations {
   remarkDidNotFinish: string;
   remarkWithdrawn: string;
   remarkNewTrackRecord: string;
+  remarkTrackRecordCourse: string;
   // Mass start lap counter (HTML, contains underline span)
   moreLapAfterRound: string;   // singular
   moreLapsAfterRound: string;  // plural
@@ -103,7 +104,8 @@ export const en: Translations = {
   remarkDidNotStart: 'Did not start',
   remarkDidNotFinish: 'Did not finish',
   remarkWithdrawn: 'Withdrawn',
-  remarkNewTrackRecord: 'New Track Record',
+  remarkNewTrackRecord: 'Track Record',
+  remarkTrackRecordCourse: 'Track Record Course',
   moreLapAfterRound: '{n} more lap <span style="text-decoration:underline">after</span> this round',
   moreLapsAfterRound: '{n} more laps <span style="text-decoration:underline">after</span> this round',
 };
@@ -153,7 +155,8 @@ export const nl: Translations = {
   remarkDidNotStart: 'Niet gestart',
   remarkDidNotFinish: 'Niet gefinisht',
   remarkWithdrawn: 'Teruggetrokken',
-  remarkNewTrackRecord: 'Nieuw baanrecord',
+  remarkNewTrackRecord: 'Baanrecord',
+  remarkTrackRecordCourse: 'Baanrecord parcours',
   moreLapAfterRound: 'nog {n} ronde <span style="text-decoration:underline">na</span> deze ronde',
   moreLapsAfterRound: 'nog {n} ronden <span style="text-decoration:underline">na</span> deze ronde',
 };
